@@ -3,45 +3,50 @@ export type TransactionType = 'sale' | 'expense' | 'investment';
 
 export interface Transaction {
   id: string;
-  date: string;
+  store_id: string;
   type: TransactionType;
   category: string;
   amount: number;
   description: string;
-  quantity?: number;
+  quantity: number;
+  created_at: string;
 }
 
 export interface InventoryItem {
   id: string;
+  store_id: string;
   name: string;
   quantity: number;
   unit: string;
-  minThreshold: number;
+  min_threshold: number;
   price: number;
+  created_at: string;
 }
 
 export interface InventoryMovement {
   id: string;
-  itemId: string;
-  itemName: string;
+  item_id: string;
   quantity: number;
-  date: string; // ISO string
+  type: 'in' | 'out';
+  created_at: string;
 }
 
 export interface PHRecord {
   id: string;
-  date: string;
+  store_id: string;
   value: number;
   status: 'Ideal' | 'Alerta' | 'Crítico';
+  created_at: string;
 }
 
 export interface AppNotification {
   id: string;
+  store_id: string;
   title: string;
   message: string;
   type: 'warning' | 'info' | 'danger';
-  date: string;
   read: boolean;
+  created_at: string;
 }
 
 export interface BusinessState {
@@ -55,7 +60,8 @@ export interface BusinessState {
 export interface Store {
   id: string;
   name: string;
-  state: BusinessState;
+  user_id: string;
+  created_at: string;
 }
 
 export type ViewType = 'dashboard' | 'sales' | 'expenses' | 'inventory' | 'reports';

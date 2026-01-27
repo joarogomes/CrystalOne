@@ -130,13 +130,16 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
 
   const filteredPhRecords = useMemo(() => {
     return state.phRecords
-      .filter(r => new Date(r.date).toISOString().split('T')[0] === qualityDate)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      /* Fix: changed r.date to r.created_at */
+      .filter(r => new Date(r.created_at).toISOString().split('T')[0] === qualityDate)
+      /* Fix: changed a.date and b.date to created_at */
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
   }, [state.phRecords, qualityDate]);
 
   const hourlyPhData = useMemo(() => {
     return filteredPhRecords.map(r => ({
-      time: new Date(r.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      /* Fix: changed r.date to r.created_at */
+      time: new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       value: r.value,
       status: r.status
     }));
@@ -165,7 +168,8 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
     state.transactions
       .filter(t => filterType === 'all' || t.type === filterType)
       .forEach(t => {
-        const dateKey = new Date(t.date).toISOString().split('T')[0];
+        /* Fix: changed t.date to t.created_at */
+        const dateKey = new Date(t.created_at).toISOString().split('T')[0];
         if (!groups[dateKey]) { 
           groups[dateKey] = { date: dateKey, sales: 0, expenses: 0, investments: 0, count: 0, items: [] }; 
         }
@@ -202,13 +206,15 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
       const monthStr = now.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
       
       const todayISO = now.toISOString().split('T')[0];
-      const todayTrans = state.transactions.filter(t => t.date.startsWith(todayISO));
+      /* Fix: changed t.date to t.created_at */
+      const todayTrans = state.transactions.filter(t => t.created_at.startsWith(todayISO));
       const dailySalesTotal = todayTrans.filter(t => t.type === 'sale').reduce((acc, t) => acc + t.amount, 0);
       const dailyExpensesTotal = todayTrans.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0);
       const dailyInvestmentsTotal = todayTrans.filter(t => t.type === 'investment').reduce((acc, t) => acc + t.amount, 0);
       
       const monthTrans = state.transactions.filter(t => {
-        const d = new Date(t.date);
+        /* Fix: changed t.date to t.created_at */
+        const d = new Date(t.created_at);
         return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
       });
       const monthlySalesTotal = monthTrans.filter(t => t.type === 'sale').reduce((acc, t) => acc + t.amount, 0);
@@ -359,7 +365,8 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
                         </div>
                         <div className="flex flex-col">
                           <span className="font-black text-slate-800 text-base mb-1">{t.category}</span>
-                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{new Date(t.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          {/* Fix: changed t.date to t.created_at */}
+                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{new Date(t.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                       </div>
                       <span className={`font-black text-lg ${t.type === 'sale' ? 'text-emerald-600' : 'text-rose-600'}`}>

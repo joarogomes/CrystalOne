@@ -18,7 +18,8 @@ interface InventoryViewProps {
   inventory: InventoryItem[];
   movements: InventoryMovement[];
   onUpdate: (id: string, delta: number) => void;
-  onAddItem: (item: Omit<InventoryItem, 'id'>) => void;
+  // Fix: changed Omit to exclude store_id and created_at as they are handled in App.tsx
+  onAddItem: (item: Omit<InventoryItem, 'id' | 'store_id' | 'created_at'>) => void;
 }
 
 const InventoryView: React.FC<InventoryViewProps> = ({ inventory, movements, onUpdate, onAddItem }) => {
@@ -37,7 +38,8 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory, movements, onU
   }, [inventory]);
 
   const lowStockCount = useMemo(() => {
-    return inventory.filter(i => i.quantity <= i.minThreshold).length;
+    /* Fix: changed i.minThreshold to i.min_threshold */
+    return inventory.filter(i => i.quantity <= i.min_threshold).length;
   }, [inventory]);
 
   const handleAdjustmentSubmit = (e: React.FormEvent) => {
@@ -57,7 +59,8 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory, movements, onU
     onAddItem({
       name: newName,
       unit: newUnit,
-      minThreshold: parseInt(newMin) || 0,
+      /* Fix: changed minThreshold to min_threshold */
+      min_threshold: parseInt(newMin) || 0,
       quantity: parseInt(newInitial) || 0,
       price: parseFloat(newPrice) || 0
     });
@@ -110,7 +113,8 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory, movements, onU
       {/* Grid de Itens */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {inventory.map(item => {
-          const isCritical = item.quantity <= item.minThreshold;
+          /* Fix: changed item.minThreshold to item.min_threshold */
+          const isCritical = item.quantity <= item.min_threshold;
           
           return (
             <div key={item.id} className={`bg-white/80 backdrop-blur-sm p-8 rounded-[48px] border border-white shadow-sm flex flex-col h-full hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 group ${isCritical ? 'ring-2 ring-red-500/10' : ''}`}>
@@ -136,7 +140,8 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory, movements, onU
 
               <div className="space-y-4 pt-6 border-t border-slate-50">
                  <div className="flex justify-between text-[10px] font-black uppercase text-slate-400 tracking-widest">
-                    <span>Mínimo: {item.minThreshold}</span>
+                    {/* Fix: changed item.minThreshold to item.min_threshold */}
+                    <span>Mínimo: {item.min_threshold}</span>
                     <span>Un: {item.price.toLocaleString()} Kz</span>
                  </div>
                  <div className="flex gap-2">

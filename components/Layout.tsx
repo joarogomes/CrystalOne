@@ -14,6 +14,7 @@ interface LayoutProps {
   activeStoreId: string;
   onSwitchStore: (id: string) => void;
   onAddStore: (name: string) => void;
+  onLogout?: () => void;
 }
 
 const Layout: React.FC<LayoutProps> = ({ 
@@ -25,7 +26,8 @@ const Layout: React.FC<LayoutProps> = ({
   stores,
   activeStoreId,
   onSwitchStore,
-  onAddStore
+  onAddStore,
+  onLogout
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showStoreSwitcher, setShowStoreSwitcher] = useState(false);
@@ -33,7 +35,7 @@ const Layout: React.FC<LayoutProps> = ({
   const [newStoreName, setNewStoreName] = useState('');
 
   const unreadCount = notifications.filter(n => !n.read).length;
-  const activeStore = stores.find(s => s.id === activeStoreId) || stores[0];
+  const activeStore = stores.find(s => s.id === activeStoreId) || stores[0] || { name: 'Carregando...' };
 
   const handleOpenNotifications = () => {
     setShowNotifications(true);
@@ -107,7 +109,7 @@ const Layout: React.FC<LayoutProps> = ({
         </div>
 
         <div className="mt-auto p-8 border-t border-white/10">
-           <button onClick={() => window.location.reload()} className="flex items-center gap-4 p-4 w-full text-slate-400 hover:text-red-500 transition-colors">
+           <button onClick={onLogout} className="flex items-center gap-4 p-4 w-full text-slate-400 hover:text-red-500 transition-colors">
               <LogOut size={20} />
               <span className="font-bold text-sm">Sair do App</span>
            </button>
@@ -218,6 +220,14 @@ const Layout: React.FC<LayoutProps> = ({
                   {store.id === activeStoreId && <div className="w-2.5 h-2.5 rounded-full bg-white animate-pulse" />}
                 </button>
               ))}
+              
+              <button 
+                onClick={onLogout}
+                className="w-full p-5 rounded-2xl flex items-center gap-4 bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 transition-all md:hidden"
+              >
+                <LogOut size={20} />
+                <span className="font-bold text-base">Sair da Conta</span>
+              </button>
             </div>
           </div>
         </div>
@@ -246,7 +256,8 @@ const Layout: React.FC<LayoutProps> = ({
                       <div className="flex flex-col gap-1">
                         <span className="font-black text-slate-800 text-sm">{n.title}</span>
                         <p className="text-xs text-slate-500 font-medium leading-relaxed">{n.message}</p>
-                        <span className="text-[9px] text-slate-400 font-black uppercase mt-3">{new Date(n.date).toLocaleString()}</span>
+                        {/* Fix: changed n.date to n.created_at */}
+                        <span className="text-[9px] text-slate-400 font-black uppercase mt-3">{new Date(n.created_at).toLocaleString()}</span>
                       </div>
                     </div>
                   </div>

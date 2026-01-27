@@ -5,10 +5,6 @@ import { BusinessState } from '../types';
 import { getDailyMarketingTip } from '../services/geminiService';
 import { TrendingUp, TrendingDown, Wallet, BarChart3, Calendar, Sparkles, AlertCircle, Lightbulb, RefreshCw, Loader2, Info } from 'lucide-react';
 
-interface DashboardProps {
-  state: BusinessState;
-}
-
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
@@ -42,6 +38,11 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+// Added missing DashboardProps interface
+interface DashboardProps {
+  state: BusinessState;
+}
+
 const Dashboard: React.FC<DashboardProps> = ({ state }) => {
   const [marketingTip, setMarketingTip] = useState<string | null>(null);
   const [loadingTip, setLoadingTip] = useState(false);
@@ -71,7 +72,8 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
     const statsMap: Record<number, { sales: number, expenses: number }> = {};
     
     state.transactions.forEach(t => {
-      const transactionDate = new Date(t.date);
+      {/* Fix: changed t.date to t.created_at */}
+      const transactionDate = new Date(t.created_at);
       if (transactionDate.getMonth() === now.getMonth() && transactionDate.getFullYear() === now.getFullYear()) {
         const day = transactionDate.getDate();
         if (!statsMap[day]) statsMap[day] = { sales: 0, expenses: 0 };
@@ -282,7 +284,8 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
         <div className="lg:col-span-1 glass-panel p-10 rounded-[48px] border border-white bg-white/60 shadow-sm hover:shadow-xl transition-all">
           <h3 className="text-slate-900 font-extrabold text-[12px] tracking-[0.2em] mb-8 uppercase opacity-60">Status de Operação & Pureza</h3>
           <div className="grid grid-cols-1 gap-4">
-            {state.inventory.filter(i => i.quantity <= i.minThreshold).length === 0 ? (
+            {/* Fix: changed i.minThreshold to i.min_threshold */}
+            {state.inventory.filter(i => i.quantity <= i.min_threshold).length === 0 ? (
               <div className="flex flex-col items-center justify-center p-12 bg-emerald-50/30 rounded-[32px] border border-emerald-100/50 text-center gap-4">
                 <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
                    <TrendingUp size={32} />
@@ -295,7 +298,8 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
             ) : (
               <div className="space-y-4 max-h-[350px] overflow-y-auto no-scrollbar pr-2">
                 {state.inventory
-                  .filter(i => i.quantity <= i.minThreshold)
+                  /* Fix: changed item.minThreshold to item.min_threshold */
+                  .filter(i => i.quantity <= i.min_threshold)
                   .map(item => (
                     <div key={item.id} className="flex items-center justify-between p-6 bg-rose-50/50 rounded-[28px] border border-rose-100 group hover:bg-rose-50 transition-all">
                       <div className="flex flex-col">
@@ -309,7 +313,8 @@ const Dashboard: React.FC<DashboardProps> = ({ state }) => {
                         <span className="bg-rose-600 text-white text-xs px-5 py-2 rounded-2xl font-black shadow-lg shadow-rose-200">
                           {item.quantity} {item.unit}
                         </span>
-                        <span className="text-[8px] font-bold text-slate-400 mt-2 uppercase">Mínimo: {item.minThreshold}</span>
+                        {/* Fix: changed item.minThreshold to item.min_threshold */}
+                        <span className="text-[8px] font-bold text-slate-400 mt-2 uppercase">Mínimo: {item.min_threshold}</span>
                       </div>
                     </div>
                   ))}

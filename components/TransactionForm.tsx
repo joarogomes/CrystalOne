@@ -7,7 +7,8 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
 interface TransactionFormProps {
   type: TransactionType;
-  onAdd: (transaction: Omit<Transaction, 'id'>) => void;
+  // Updated signature to match handleAddTransaction in App.tsx
+  onAdd: (transaction: Omit<Transaction, 'id' | 'created_at' | 'store_id'>) => void;
   transactions: Transaction[];
 }
 
@@ -34,8 +35,8 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
     
     if (!amount || !finalCategory) return;
 
+    // Removed created_at as it is handled by the backend/App.tsx
     onAdd({
-      date: new Date().toISOString(),
       type: activeType as TransactionType,
       category: finalCategory,
       amount: parseFloat(amount),
@@ -60,7 +61,8 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
     
     const now = new Date();
     const currentMonthData = transactions.filter(t => {
-      const d = new Date(t.date);
+      /* Fix: changed t.date to t.created_at */
+      const d = new Date(t.created_at);
       return t.type === activeType && 
              d.getMonth() === now.getMonth() && 
              d.getFullYear() === now.getFullYear();
@@ -91,10 +93,13 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
     
     transactions
       .filter(t => t.type === 'sale')
-      .filter(t => new Date(t.date).toISOString().split('T')[0] === selectedDate)
+      /* Fix: changed t.date to t.created_at */
+      .filter(t => new Date(t.created_at).toISOString().split('T')[0] === selectedDate)
       .forEach(t => {
-        const dateStr = new Date(t.date).toLocaleDateString('pt-BR');
-        if (!groups[dateStr]) groups[dateStr] = { total: 0, count: 0, date: t.date };
+        /* Fix: changed t.date to t.created_at */
+        const dateStr = new Date(t.created_at).toLocaleDateString('pt-BR');
+        /* Fix: changed t.date to t.created_at */
+        if (!groups[dateStr]) groups[dateStr] = { total: 0, count: 0, date: t.created_at };
         groups[dateStr].total += t.amount;
         groups[dateStr].count += 1;
       });
@@ -268,7 +273,8 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
                 </div>
                 <div className="flex flex-col">
                   <span className="font-black text-slate-900 text-base leading-none mb-1.5">{t.category}</span>
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{new Date(t.date).toLocaleDateString('pt-BR')}</span>
+                  {/* Fix: changed t.date to t.created_at */}
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{new Date(t.created_at).toLocaleDateString('pt-BR')}</span>
                 </div>
               </div>
               <div className="flex flex-col items-end">
@@ -331,24 +337,34 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
                   </select>
                 )}
               </div>
-              
+
               <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-400 px-2 uppercase tracking-[0.2em]">Valor (Kz)</label>
-                <div className="relative">
-                  <input 
-                    type="number" 
-                    step="0.01" 
-                    value={amount} 
-                    onChange={e => setAmount(e.target.value)} 
-                    placeholder="0,00" 
-                    className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-6 text-slate-900 text-3xl font-black focus:ring-4 focus:ring-blue-100 focus:outline-none" 
-                    required 
-                  />
-                </div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2">Valor (Kz)</label>
+                <input 
+                  type="number" 
+                  value={amount} 
+                  onChange={e => setAmount(e.target.value)} 
+                  placeholder="0,00" 
+                  className="w-full bg-slate-900 text-white rounded-[32px] px-8 py-8 text-4xl font-black focus:ring-8 focus:ring-blue-900/10 focus:outline-none transition-all" 
+                  required 
+                />
               </div>
-              
-              <button type="submit" className={`w-full text-white font-black py-6 rounded-[28px] shadow-2xl transition-all active:scale-95 ${activeType === 'investment' ? 'bg-amber-600 shadow-amber-600/20' : 'bg-blue-600 shadow-blue-600/20'}`}>
-                SALVAR AGORA
+
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-2">Descrição (Opcional)</label>
+                <textarea 
+                  value={description} 
+                  onChange={e => setDescription(e.target.value)} 
+                  placeholder="Observações do lançamento..." 
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-slate-900 font-bold focus:ring-4 focus:ring-blue-100 focus:outline-none min-h-[100px] resize-none"
+                />
+              </div>
+
+              <button 
+                type="submit" 
+                className={`w-full text-white font-black py-6 rounded-[32px] shadow-2xl hover:scale-[1.02] active:scale-95 transition-all text-sm tracking-widest ${activeType === 'sale' ? 'bg-blue-600 shadow-blue-500/20' : activeType === 'investment' ? 'bg-amber-600 shadow-amber-500/20' : 'bg-rose-600 shadow-rose-500/20'}`}
+              >
+                CONFIRMAR REGISTRO
               </button>
             </form>
           </div>

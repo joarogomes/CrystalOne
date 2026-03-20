@@ -9,7 +9,9 @@ import {
   Package,
   Sparkles,
   TrendingUp,
-  Plus
+  Plus,
+  History,
+  Clock
 } from 'lucide-react';
 
 interface InventoryViewProps {
@@ -21,6 +23,7 @@ interface InventoryViewProps {
 
 const InventoryView: React.FC<InventoryViewProps> = ({ inventory, movements, onUpdate, onAddItem }) => {
   const [adjustmentModal, setAdjustmentModal] = useState<{ isOpen: boolean; itemId: string; itemName: string; type: 'in' | 'out' } | null>(null);
+  const [historyModal, setHistoryModal] = useState<{ isOpen: boolean; itemId: string; itemName: string } | null>(null);
   const [newItemModal, setNewItemModal] = useState(false);
   const [adjustmentAmount, setAdjustmentAmount] = useState('');
 
@@ -69,8 +72,8 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory, movements, onU
     <div className="space-y-10 animate-premium">
       <div className="flex items-center justify-between gap-6">
         <div className="flex flex-col">
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight">Estoque CrystalOne</h2>
-          <p className="text-xs font-black text-blue-600 uppercase tracking-[0.3em] mt-2">Visão Estratégica de Insumos</p>
+          <h2 className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Estoque CrystalOne</h2>
+          <p className="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-[0.3em] mt-2">Visão Estratégica de Insumos</p>
         </div>
         <button 
           onClick={() => setNewItemModal(true)}
@@ -82,7 +85,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory, movements, onU
       </div>
 
       {/* Inventory Value Summary */}
-      <div className="bg-slate-900 p-6 md:p-12 rounded-[32px] md:rounded-[56px] text-white shadow-2xl relative overflow-hidden">
+      <div className="bg-slate-900 dark:bg-slate-950 p-6 md:p-12 rounded-[32px] md:rounded-[56px] text-white shadow-2xl relative overflow-hidden border border-white/5 dark:border-slate-800/50">
          <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8 md:gap-12">
             <div className="flex flex-col gap-3 text-center md:text-left">
                <div className="flex items-center justify-center md:justify-start gap-3 text-blue-400">
@@ -107,10 +110,19 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory, movements, onU
           const isCritical = item.quantity <= item.min_threshold;
           
           return (
-            <div key={item.id} className={`bg-white/80 backdrop-blur-xl p-6 md:p-8 rounded-[32px] md:rounded-[48px] border border-white shadow-sm flex flex-col hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 group ${isCritical ? 'ring-2 ring-red-500/10' : ''}`}>
+            <div key={item.id} className={`bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-6 md:p-8 rounded-[32px] md:rounded-[48px] border border-white dark:border-slate-800 shadow-sm flex flex-col hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 group ${isCritical ? 'ring-2 ring-red-500/10' : ''}`}>
               <div className="flex justify-between items-start mb-6 md:mb-8">
-                 <div className="p-3 md:p-4 rounded-2xl md:rounded-3xl bg-slate-50 text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all">
-                    <Package size={24} md:size={28} />
+                 <div className="flex gap-2">
+                   <div className="p-3 md:p-4 rounded-2xl md:rounded-3xl bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                      <Package size={24} />
+                   </div>
+                   <button 
+                     onClick={() => setHistoryModal({ isOpen: true, itemId: item.id, itemName: item.name })}
+                     className="p-3 md:p-4 rounded-2xl md:rounded-3xl bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+                     title="Ver Histórico"
+                   >
+                      <History size={24} />
+                   </button>
                  </div>
                  {isCritical && (
                    <span className="bg-red-500 text-white text-[9px] font-black px-4 py-1.5 rounded-full animate-pulse uppercase tracking-widest">Crítico</span>
@@ -118,17 +130,17 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory, movements, onU
               </div>
 
               <div className="flex-1">
-                <h4 className="font-black text-slate-900 text-xl mb-2 truncate" title={item.name}>{item.name}</h4>
+                <h4 className="font-black text-slate-900 dark:text-slate-100 text-xl mb-2 truncate" title={item.name}>{item.name}</h4>
                 <div className="flex items-center gap-3 mb-6">
-                   <span className={`text-sm font-black uppercase ${isCritical ? 'text-red-500' : 'text-blue-600'}`}>
+                   <span className={`text-sm font-black uppercase ${isCritical ? 'text-red-500' : 'text-blue-600 dark:text-blue-400'}`}>
                       {item.quantity} {item.unit}
                    </span>
-                   <div className="w-1.5 h-1.5 rounded-full bg-slate-200"></div>
-                   <span className="text-xs text-slate-400 font-bold">{item.price.toLocaleString()} Kz</span>
+                   <div className="w-1.5 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700"></div>
+                   <span className="text-xs text-slate-400 dark:text-slate-500 font-bold">{item.price.toLocaleString()} Kz</span>
                 </div>
               </div>
 
-              <div className="space-y-4 pt-6 border-t border-slate-50">
+              <div className="space-y-4 pt-6 border-t border-slate-50 dark:border-slate-800">
                  <div className="flex gap-2">
                     <button 
                       onClick={() => onUpdate(item.id, -1)}
@@ -147,7 +159,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory, movements, onU
                  </div>
                  <button 
                     onClick={() => setAdjustmentModal({ isOpen: true, itemId: item.id, itemName: item.name, type: 'out' })}
-                    className="w-full py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-blue-600 transition-colors"
+                    className="w-full py-3 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                   >
                     Movimento Especial
                   </button>
@@ -160,12 +172,12 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory, movements, onU
       {/* Adjust Modal (Shared across views) */}
       {adjustmentModal?.isOpen && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-6">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-xl" onClick={() => setAdjustmentModal(null)} />
-          <div className="relative bg-white w-full max-w-lg rounded-[40px] md:rounded-[56px] p-8 md:p-16 shadow-2xl animate-premium text-center">
-            <h3 className="text-2xl md:text-3xl font-black text-slate-900 mb-2">
+          <div className="absolute inset-0 bg-slate-900/40 dark:bg-slate-950/60 backdrop-blur-xl" onClick={() => setAdjustmentModal(null)} />
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-[40px] md:rounded-[56px] p-8 md:p-16 shadow-2xl animate-premium text-center border border-white/40 dark:border-slate-800/40">
+            <h3 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-slate-100 mb-2">
               {adjustmentModal.type === 'in' ? 'Reposição' : 'Baixa de Insumo'}
             </h3>
-            <p className="text-xs md:text-sm text-blue-600 font-black uppercase tracking-[0.3em] mb-8 md:mb-12">{adjustmentModal.itemName}</p>
+            <p className="text-xs md:text-sm text-blue-600 dark:text-blue-400 font-black uppercase tracking-[0.3em] mb-8 md:mb-12">{adjustmentModal.itemName}</p>
             <form onSubmit={handleAdjustmentSubmit} className="space-y-8 md:space-y-10">
               <input 
                 autoFocus
@@ -173,7 +185,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory, movements, onU
                 value={adjustmentAmount} 
                 onChange={e => setAdjustmentAmount(e.target.value)} 
                 placeholder="0" 
-                className="w-full bg-slate-50 border border-slate-100 rounded-[32px] md:rounded-[40px] py-8 md:py-12 text-5xl md:text-7xl font-black text-center focus:outline-none transition-all focus:ring-4 focus:ring-blue-100" 
+                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[32px] md:rounded-[40px] py-8 md:py-12 text-5xl md:text-7xl font-black text-center text-slate-900 dark:text-slate-100 focus:outline-none transition-all focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/30" 
                 required 
               />
               <button 
@@ -189,28 +201,75 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory, movements, onU
         </div>
       )}
 
+      {/* History Modal */}
+      {historyModal?.isOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-6">
+          <div className="absolute inset-0 bg-slate-900/40 dark:bg-slate-950/60 backdrop-blur-xl" onClick={() => setHistoryModal(null)} />
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[40px] md:rounded-[64px] p-8 md:p-12 shadow-2xl animate-premium border border-white/40 dark:border-slate-800/40 flex flex-col max-h-[80vh]">
+             <div className="flex justify-between items-center mb-8 md:mb-10">
+                <div className="flex flex-col">
+                  <h3 className="text-xl md:text-2xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Histórico de Movimentações</h3>
+                  <p className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mt-1">{historyModal.itemName}</p>
+                </div>
+                <button onClick={() => setHistoryModal(null)} className="p-2 text-slate-300 dark:text-slate-600 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"><X size={28}/></button>
+             </div>
+             
+             <div className="flex-1 overflow-y-auto pr-2 space-y-4 no-scrollbar">
+                {movements.filter(m => m.item_id === historyModal.itemId).length > 0 ? (
+                  movements.filter(m => m.item_id === historyModal.itemId).map(m => (
+                    <div key={m.id} className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-3xl border border-slate-100 dark:border-slate-700 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-4">
+                        <div className={`p-3 rounded-2xl ${m.type === 'in' ? 'bg-blue-600/10 text-blue-600 dark:text-blue-400' : 'bg-emerald-600/10 text-emerald-600 dark:text-emerald-400'}`}>
+                          {m.type === 'in' ? <ArrowUpRight size={20} /> : <TrendingUp size={20} className="rotate-180" />}
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-xs font-black uppercase tracking-tight text-slate-900 dark:text-slate-100">
+                            {m.type === 'in' ? 'Reposição' : 'Saída / Venda'}
+                          </span>
+                          <div className="flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">
+                            <Clock size={10} />
+                            {new Date(m.created_at).toLocaleString('pt-PT')}
+                          </div>
+                        </div>
+                      </div>
+                      <span className={`text-lg font-black ${m.type === 'in' ? 'text-blue-600 dark:text-blue-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                        {m.type === 'in' ? '+' : '-'}{m.quantity}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12 text-slate-400 dark:text-slate-600">
+                    <History size={48} className="mb-4 opacity-20" />
+                    <p className="text-xs font-black uppercase tracking-widest">Nenhuma movimentação registada</p>
+                  </div>
+                )}
+             </div>
+          </div>
+        </div>
+      )}
+
       {/* New Item Modal */}
       {newItemModal && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-6">
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-xl" onClick={() => setNewItemModal(false)} />
-          <div className="relative bg-white w-full max-w-2xl rounded-[40px] md:rounded-[64px] p-8 md:p-12 shadow-2xl animate-premium">
+          <div className="absolute inset-0 bg-slate-900/40 dark:bg-slate-950/60 backdrop-blur-xl" onClick={() => setNewItemModal(false)} />
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[40px] md:rounded-[64px] p-8 md:p-12 shadow-2xl animate-premium border border-white/40 dark:border-slate-800/40">
              <div className="flex justify-between items-center mb-8 md:mb-10">
-                <h3 className="text-xl md:text-2xl font-black text-slate-900 uppercase tracking-tight">Novo Insumo CrystalOne</h3>
-                <button onClick={() => setNewItemModal(false)} className="p-2 text-slate-300 hover:text-slate-900 transition-colors"><X size={28} md:size={32}/></button>
+                <h3 className="text-xl md:text-2xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Novo Insumo CrystalOne</h3>
+                <button onClick={() => setNewItemModal(false)} className="p-2 text-slate-300 dark:text-slate-600 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"><X size={28}/></button>
              </div>
              <form onSubmit={handleCreateItem} className="space-y-6">
                 <div className="space-y-2">
-                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">Nome do Produto</label>
-                   <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Ex: Galões 20L Vazios" className="w-full bg-slate-50 p-6 rounded-3xl font-bold border border-slate-100 focus:ring-4 focus:ring-blue-100 outline-none transition-all" required />
+                   <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-2">Nome do Produto</label>
+                   <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Ex: Galões 20L Vazios" className="w-full bg-slate-50 dark:bg-slate-800 p-6 rounded-3xl font-bold border border-slate-100 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/30 outline-none transition-all" required />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">Alerta Mínimo</label>
-                    <input type="number" value={newMin} onChange={e => setNewMin(e.target.value)} placeholder="Mínimo" className="w-full bg-slate-50 p-6 rounded-3xl font-bold border border-slate-100 focus:ring-4 focus:ring-blue-100 outline-none transition-all" />
+                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-2">Alerta Mínimo</label>
+                    <input type="number" value={newMin} onChange={e => setNewMin(e.target.value)} placeholder="Mínimo" className="w-full bg-slate-50 dark:bg-slate-800 p-6 rounded-3xl font-bold border border-slate-100 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/30 outline-none transition-all" />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-2">Preço Unitário (Kz)</label>
-                    <input type="number" value={newPrice} onChange={e => setNewPrice(e.target.value)} placeholder="Preço Kz" className="w-full bg-slate-50 p-6 rounded-3xl font-bold border border-slate-100 focus:ring-4 focus:ring-blue-100 outline-none transition-all" />
+                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-2">Preço Unitário (Kz)</label>
+                    <input type="number" value={newPrice} onChange={e => setNewPrice(e.target.value)} placeholder="Preço Kz" className="w-full bg-slate-50 dark:bg-slate-800 p-6 rounded-3xl font-bold border border-slate-100 dark:border-slate-700 text-slate-900 dark:text-slate-100 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/30 outline-none transition-all" />
                   </div>
                 </div>
                 <button type="submit" className="w-full bg-blue-600 text-white font-black py-7 rounded-[32px] shadow-2xl hover:bg-blue-700 transition-all text-sm tracking-widest mt-4">

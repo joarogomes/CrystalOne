@@ -8,7 +8,7 @@ import ReportsView from './components/ReportsView';
 import NotificationToast from './components/NotificationToast';
 import LoginPin from './components/LoginPin';
 import DatabaseSetupView from './components/DatabaseSetupView';
-import { BusinessState, ViewType, Transaction, InventoryItem, Store, AppNotification, PHRecord } from './types';
+import { BusinessState, ViewType, Transaction, InventoryItem, InventoryMovement, Store, AppNotification, PHRecord } from './types';
 import { INITIAL_INVENTORY } from './constants';
 import { supabase } from './services/supabase';
 
@@ -25,9 +25,21 @@ const App: React.FC = () => {
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [inventoryMovements, setInventoryMovements] = useState<InventoryMovement[]>([]);
   const [phRecords, setPhRecords] = useState<PHRecord[]>([]);
-  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isTestingDb, setIsTestingDb] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return localStorage.getItem('crystalone_theme') === 'dark';
+  });
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('crystalone_theme', isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode]);
 
   useEffect(() => {
     const initializeApp = async () => {
@@ -124,17 +136,17 @@ const App: React.FC = () => {
 
     const loadData = async () => {
       try {
-        const [tRes, iRes, phRes, nRes] = await Promise.all([
+        const [tRes, iRes, phRes, mRes] = await Promise.all([
           supabase.from('transactions').select('*').eq('store_id', activeStoreId).order('created_at', { ascending: false }),
           supabase.from('inventory_items').select('*').eq('store_id', activeStoreId).order('name'),
           supabase.from('ph_records').select('*').eq('store_id', activeStoreId).order('created_at', { ascending: false }),
-          supabase.from('notifications').select('*').eq('store_id', activeStoreId).order('created_at', { ascending: false })
+          supabase.from('inventory_movements').select('*').order('created_at', { ascending: false })
         ]);
 
         setTransactions(tRes.data || []);
         setInventory(iRes.data || []);
         setPhRecords(phRes.data || []);
-        setNotifications(nRes.data || []);
+        setInventoryMovements(mRes.data || []);
       } catch (err) {
         console.error("Erro ao carregar dados da unidade:", err);
       }
@@ -147,46 +159,22 @@ const App: React.FC = () => {
     if (!activeStoreId) return;
     setIsTestingDb(true);
     try {
-      // 1. Teste de Escrita
-      const testId = crypto.randomUUID();
-      const { error: writeError } = await supabase.from('notifications').insert([{
-        id: testId,
-        store_id: activeStoreId,
-        title: 'Teste de Conexão',
-        message: 'A sincronização com a nuvem está funcionando perfeitamente.',
-        type: 'info',
-        read: false
-      }]);
+      // 1. Teste de Escrita em transações (mais seguro que notificações que não existem)
+      const { error: writeError } = await supabase.from('transactions').select('id').limit(1);
 
       if (writeError) throw writeError;
 
-      // 2. Teste de Leitura (opcional, mas bom para confirmar)
-      const { data: verifyData, error: readError } = await supabase
-        .from('notifications')
-        .select('id')
-        .eq('id', testId)
-        .single();
-
-      if (readError || !verifyData) throw new Error("Falha na verificação de leitura");
-
-      setToast({
+      const successNotification: AppNotification = {
         id: crypto.randomUUID(),
         store_id: activeStoreId,
         title: 'Sucesso!',
-        message: 'Conexão com Supabase testada e aprovada (Escrita/Leitura OK).',
+        message: 'Conexão com Supabase testada e aprovada (Leitura OK).',
         type: 'info',
         read: false,
         created_at: new Date().toISOString()
-      });
-      
-      // Recarregar notificações para mostrar o novo item
-      const { data: newNotifications } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('store_id', activeStoreId)
-        .order('created_at', { ascending: false });
-      
-      if (newNotifications) setNotifications(newNotifications);
+      };
+
+      setToast(successNotification);
 
     } catch (err: any) {
       console.error("Erro no teste de banco de dados:", err);
@@ -194,7 +182,7 @@ const App: React.FC = () => {
         id: crypto.randomUUID(),
         store_id: activeStoreId,
         title: 'Erro no Teste',
-        message: `Falha ao gravar no banco: ${err.message || 'Erro desconhecido'}`,
+        message: `Falha ao conectar ao banco: ${err.message || 'Erro desconhecido'}`,
         type: 'danger',
         read: false,
         created_at: new Date().toISOString()
@@ -248,15 +236,17 @@ const App: React.FC = () => {
           quantity: quantitySold
         });
 
-        setToast({
+        const saleNotification: AppNotification = {
           id: crypto.randomUUID(),
           store_id: activeStoreId || '',
-          title: 'Venda Confirmada',
-          message: `${item.name}: +${totalSaleAmount.toLocaleString()} Kz registrados no caixa.`,
+          title: 'Venda Realizada',
+          message: `${quantitySold}x ${item.name} vendido por ${totalSaleAmount.toLocaleString()} Kz`,
           type: 'info',
           read: false,
           created_at: new Date().toISOString()
-        });
+        };
+
+        setToast(saleNotification);
       }
     }
 
@@ -283,7 +273,21 @@ const App: React.FC = () => {
         value,
         status
       }]).select().single();
-      if (data) setPhRecords(prev => [data, ...prev]);
+      if (data) {
+        setPhRecords(prev => [data, ...prev]);
+        if (status !== 'Ideal') {
+          const phNotification: AppNotification = {
+            id: crypto.randomUUID(),
+            store_id: activeStoreId || '',
+            title: `Alerta de pH: ${status}`,
+            message: `O pH registrado (${value}) está fora da faixa ideal.`,
+            type: status === 'Crítico' ? 'danger' : 'warning',
+            read: false,
+            created_at: new Date().toISOString()
+          };
+          setToast(phNotification);
+        }
+      }
     } catch (err) {}
   };
 
@@ -343,12 +347,12 @@ const App: React.FC = () => {
     <Layout 
       activeView={activeView} 
       setActiveView={setActiveView} 
-      notifications={notifications}
-      onMarkRead={() => {}} 
       stores={stores}
       activeStoreId={activeStoreId || ''}
       onSwitchStore={setActiveStoreId}
       dbStatus={dbStatus}
+      isDarkMode={isDarkMode}
+      onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
       onAddStore={async (name) => {
         const { data } = await supabase.from('stores').insert([{ name }]).select().single();
         if (data) setStores(prev => [...prev, data]);
@@ -362,14 +366,14 @@ const App: React.FC = () => {
       <div className="pb-8">
         {activeView === 'dashboard' && (
           <Dashboard 
-            state={{ transactions, inventory, inventoryMovements: [], phRecords, notifications }} 
+            state={{ transactions, inventory, inventoryMovements, phRecords }} 
             onQuickSell={(itemId) => handleUpdateInventory(itemId, -1)}
           />
         )}
         {activeView === 'sales' && <TransactionForm type="sale" onAdd={handleAddTransaction} transactions={transactions} />}
         {activeView === 'expenses' && <TransactionForm type="expense" onAdd={handleAddTransaction} transactions={transactions} />}
-        {activeView === 'inventory' && <InventoryView inventory={inventory} movements={[]} onUpdate={handleUpdateInventory} onAddItem={handleAddInventoryItem} />}
-        {activeView === 'reports' && <ReportsView state={{ transactions, inventory, inventoryMovements: [], phRecords, notifications }} onAddPH={handleAddPHRecord} storeName={stores.find(s => s.id === activeStoreId)?.name} />}
+        {activeView === 'inventory' && <InventoryView inventory={inventory} movements={inventoryMovements} onUpdate={handleUpdateInventory} onAddItem={handleAddInventoryItem} />}
+        {activeView === 'reports' && <ReportsView state={{ transactions, inventory, inventoryMovements, phRecords }} onAddPH={handleAddPHRecord} storeName={stores.find(s => s.id === activeStoreId)?.name} />}
       </div>
       {toast && <NotificationToast notification={toast} onClose={() => setToast(null)} />}
     </Layout>

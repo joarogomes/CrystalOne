@@ -6,7 +6,6 @@ const SQL_SCRIPT = `-- SQL de Retificação e Inicialização do CrystalOne no S
 -- ATENÇÃO: Se desejar apagar tudo e recomeçar do zero, descomente as linhas DROP abaixo.
 
 -- DROP TABLE IF EXISTS public.inventory_movements CASCADE;
--- DROP TABLE IF EXISTS public.notifications CASCADE;
 -- DROP TABLE IF EXISTS public.ph_records CASCADE;
 -- DROP TABLE IF EXISTS public.transactions CASCADE;
 -- DROP TABLE IF EXISTS public.inventory_items CASCADE;
@@ -53,18 +52,7 @@ CREATE TABLE IF NOT EXISTS public.ph_records (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 5. Tabela de Notificações
-CREATE TABLE IF NOT EXISTS public.notifications (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  store_id UUID REFERENCES public.stores(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  message TEXT NOT NULL,
-  type TEXT CHECK (type IN ('warning', 'info', 'danger')),
-  read BOOLEAN DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-
--- 6. Tabela de Movimentações de Estoque
+-- 5. Tabela de Movimentações de Estoque
 CREATE TABLE IF NOT EXISTS public.inventory_movements (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   item_id UUID REFERENCES public.inventory_items(id) ON DELETE CASCADE,
@@ -78,7 +66,6 @@ ALTER TABLE public.stores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inventory_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ph_records ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inventory_movements ENABLE ROW LEVEL SECURITY;
 
 -- Remover políticas antigas para evitar erros de duplicidade ao re-executar
@@ -86,7 +73,6 @@ DROP POLICY IF EXISTS "Permitir tudo para todos" ON public.stores;
 DROP POLICY IF EXISTS "Permitir tudo para todos" ON public.inventory_items;
 DROP POLICY IF EXISTS "Permitir tudo para todos" ON public.transactions;
 DROP POLICY IF EXISTS "Permitir tudo para todos" ON public.ph_records;
-DROP POLICY IF EXISTS "Permitir tudo para todos" ON public.notifications;
 DROP POLICY IF EXISTS "Permitir tudo para todos" ON public.inventory_movements;
 
 -- Criar Políticas de Acesso Público (Necessário para o funcionamento via Anon Key sem Auth)
@@ -94,7 +80,6 @@ CREATE POLICY "Permitir tudo para todos" ON public.stores FOR ALL USING (true) W
 CREATE POLICY "Permitir tudo para todos" ON public.inventory_items FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Permitir tudo para todos" ON public.transactions FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Permitir tudo para todos" ON public.ph_records FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Permitir tudo para todos" ON public.notifications FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Permitir tudo para todos" ON public.inventory_movements FOR ALL USING (true) WITH CHECK (true);`;
 
 const DatabaseSetupView: React.FC = () => {

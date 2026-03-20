@@ -1,8 +1,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { BusinessState } from '../types';
-import { getBusinessInsights, sendChatMessage, ChatMessage } from '../services/geminiService';
-import { Sparkles, Loader2, RefreshCw, FileText, Zap, Lightbulb, Send, User, Bot, X, Target } from 'lucide-react';
+import { getBusinessInsights, sendChatMessage, getStockPredictions, ChatMessage } from '../services/geminiService';
+import { Sparkles, Loader2, RefreshCw, FileText, Zap, Lightbulb, Send, User, Bot, X, Target, BarChart3 } from 'lucide-react';
 
 interface AIAdvisorProps {
   state: BusinessState;
@@ -11,7 +11,7 @@ interface AIAdvisorProps {
 const AIAdvisor: React.FC<AIAdvisorProps> = ({ state }) => {
   const [insight, setInsight] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [analysisType, setAnalysisType] = useState<'daily' | 'monthly'>('daily');
+  const [analysisType, setAnalysisType] = useState<'daily' | 'monthly' | 'stock'>('daily');
   
   // Chat States
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -25,17 +25,23 @@ const AIAdvisor: React.FC<AIAdvisorProps> = ({ state }) => {
     }
   }, [chatMessages, isTyping, insight]);
 
-  const fetchInsights = async (type: 'daily' | 'monthly') => {
+  const fetchInsights = async (type: 'daily' | 'monthly' | 'stock') => {
     setLoading(true);
     setAnalysisType(type);
     setInsight(null);
     setChatMessages([]);
     try {
-      const result = await getBusinessInsights(state, type);
-      if (type === 'daily') {
-        setChatMessages([{ role: 'model', text: result }]);
-      } else {
+      let result = '';
+      if (type === 'stock') {
+        result = await getStockPredictions(state);
         setInsight(result);
+      } else {
+        result = await getBusinessInsights(state, type);
+        if (type === 'daily') {
+          setChatMessages([{ role: 'model', text: result }]);
+        } else {
+          setInsight(result);
+        }
       }
     } catch (err) {
       setInsight("Erro ao gerar insights.");
@@ -85,7 +91,7 @@ const AIAdvisor: React.FC<AIAdvisorProps> = ({ state }) => {
             )}
           </div>
           <p className="text-[9px] md:text-[10px] text-blue-100 font-bold uppercase tracking-widest opacity-80">
-            {analysisType === 'monthly' ? 'Plano de Marketing Digital' : 'Consultoria em Tempo Real'}
+            {analysisType === 'monthly' ? 'Plano de Marketing Digital' : analysisType === 'stock' ? 'Previsão de Ruptura de Estoque' : 'Consultoria em Tempo Real'}
           </p>
         </div>
       </div>
@@ -102,6 +108,19 @@ const AIAdvisor: React.FC<AIAdvisorProps> = ({ state }) => {
             <div>
               <span className="font-black text-slate-800 text-sm block">Chat de Consultoria</span>
               <span className="text-[9px] md:text-[10px] text-slate-400 font-bold uppercase tracking-widest">Dicas rápidas e WhatsApp</span>
+            </div>
+          </button>
+
+          <button 
+            onClick={() => fetchInsights('stock')}
+            className="bg-white p-4 md:p-6 rounded-[24px] md:rounded-[28px] border border-slate-100 shadow-sm flex items-center gap-3 md:gap-4 active:scale-95 transition-all text-left group border-b-4 border-b-emerald-500"
+          >
+            <div className="bg-emerald-50 p-3 md:p-4 rounded-xl md:rounded-2xl text-emerald-600 group-hover:bg-emerald-100">
+              <BarChart3 size={20} md:size={24} />
+            </div>
+            <div>
+              <span className="font-black text-slate-800 text-sm block">Previsão de Estoque</span>
+              <span className="text-[9px] md:text-[10px] text-slate-400 font-bold uppercase tracking-widest">IA Preditiva de Ruptura</span>
             </div>
           </button>
 

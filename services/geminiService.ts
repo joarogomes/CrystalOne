@@ -96,6 +96,40 @@ export const getBusinessInsights = async (state: BusinessState, type: 'daily' | 
   }
 };
 
+export const getStockPredictions = async (state: BusinessState): Promise<string> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const context = getContextPrompt(state);
+  
+  const movements = state.inventoryMovements
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 50) // Analisar as últimas 50 movimentações
+    .map(m => `${m.type === 'in' ? 'Entrada' : 'Saída'} de ${m.quantity} unidades em ${new Date(m.created_at).toLocaleDateString()}`)
+    .join('\n');
+
+  const prompt = `
+    Com base no estoque atual e no histórico de movimentações abaixo, preveja quando os itens críticos podem acabar.
+    HISTÓRICO RECENTE:
+    ${movements || 'Sem histórico de movimentações ainda.'}
+    
+    ESTOQUE ATUAL:
+    ${state.inventory.map(i => `${i.name}: ${i.quantity} ${i.unit} (Mínimo: ${i.min_threshold})`).join('\n')}
+    
+    Forneça uma análise preditiva curta e direta (máximo 3 parágrafos). Identifique quais itens correm mais risco e dê uma sugestão de data para reposição.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: context + "\n\n" + prompt,
+      config: { temperature: 0.7 }
+    });
+    return response.text || "Não foi possível gerar a previsão de estoque no momento.";
+  } catch (error) {
+    console.error(error);
+    return "Erro ao calcular previsões de estoque.";
+  }
+};
+
 export const sendChatMessage = async (state: BusinessState, history: ChatMessage[], newMessage: string): Promise<string> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const systemInstruction = getContextPrompt(state) + "\nResponda como um mentor de negócios focado em resultados. Use emojis ocasionalmente para ser amigável mas mantenha o profissionalismo.";

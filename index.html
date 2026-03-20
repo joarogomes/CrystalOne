@@ -6,13 +6,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CrystalOne - Gestão de Negócios</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              jakarta: ['Plus Jakarta Sans', 'sans-serif'],
+            },
+          },
+        },
+      }
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#2563eb">
     <style>
         :root {
             --primary: #3b82f6;
             --secondary: #60a5fa;
             --accent: #93c5fd;
             --bg-gradient: linear-gradient(160deg, #f8fbff 0%, #edf5ff 50%, #f0f7ff 100%);
+        }
+
+        .dark {
+            --bg-gradient: linear-gradient(160deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
         }
 
         body {
@@ -24,6 +42,11 @@
             color: #0f172a;
             overflow-x: hidden;
             margin: 0;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        .dark body {
+            color: #f8fafc;
         }
 
         /* Pure Water Droplets (Visual Identity) */
@@ -36,7 +59,15 @@
             box-shadow: inset -5px -5px 15px rgba(255,255,255,0.6), 
                         inset 5px 5px 15px rgba(0,0,0,0.01),
                         10px 20px 40px rgba(31, 38, 135, 0.02);
-            transition: transform 0.3s ease-out;
+            transition: transform 0.3s ease-out, opacity 0.3s ease;
+        }
+
+        .dark .water-droplet {
+            background: radial-gradient(circle at 35% 35%, rgba(59,130,246,0.2) 0%, rgba(30,41,59,0.1) 60%, rgba(15,23,42,0.01) 100%);
+            box-shadow: inset -5px -5px 15px rgba(255,255,255,0.05), 
+                        inset 5px 5px 15px rgba(0,0,0,0.2),
+                        10px 20px 40px rgba(0, 0, 0, 0.2);
+            opacity: 0.1;
         }
 
         .droplet-1 {

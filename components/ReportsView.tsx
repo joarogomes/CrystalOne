@@ -24,7 +24,8 @@ import {
   TrendingUp,
   TrendingDown,
   AlertCircle,
-  ChevronDown
+  ChevronDown,
+  Landmark
 } from 'lucide-react';
 
 interface ReportsViewProps {
@@ -238,27 +239,27 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex flex-col gap-2">
-          <h2 className="text-3xl font-black text-slate-900 tracking-tight">Relatórios de Desempenho</h2>
-          <p className="text-slate-500 text-sm">Visão analítica do fluxo de caixa e padrões de qualidade.</p>
+          <h2 className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Relatórios de Desempenho</h2>
+          <p className="text-slate-500 dark:text-slate-400 text-sm">Visão analítica do fluxo de caixa e padrões de qualidade.</p>
         </div>
         
         <button 
           onClick={handleExportPDF}
           disabled={isExporting}
           className={`flex items-center gap-3 px-8 py-4 rounded-[24px] font-black text-xs uppercase tracking-widest transition-all shadow-xl shadow-blue-500/10 ${
-            isExporting ? 'bg-slate-100 text-slate-400 cursor-wait' : 'bg-white text-blue-600 border border-blue-50 hover:bg-blue-600 hover:text-white group active:scale-95'
+            isExporting ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-wait' : 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 border border-blue-50 dark:border-slate-800 hover:bg-blue-600 dark:hover:bg-blue-500 hover:text-white group active:scale-95'
           }`}
         >
-          {isExporting ? <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /> : <FileDown size={20} />}
+          {isExporting ? <div className="w-4 h-4 border-2 border-blue-600 dark:border-blue-400 border-t-transparent rounded-full animate-spin" /> : <FileDown size={20} />}
           {isExporting ? 'Processando...' : 'Exportar PDF'}
         </button>
       </div>
 
       {/* Tab Navigation with Sliding Indicator */}
-      <div className="relative flex bg-slate-200/50 p-1.5 rounded-[32px] max-w-2xl border border-slate-100/50 shadow-inner">
+      <div className="relative flex bg-slate-200/50 dark:bg-slate-800/50 p-1.5 rounded-[32px] max-w-2xl border border-slate-100/50 dark:border-slate-700/50 shadow-inner">
         {/* Animated Sliding Indicator */}
         <div 
-          className="absolute h-[calc(100%-12px)] bg-white rounded-[26px] shadow-xl transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+          className="absolute h-[calc(100%-12px)] bg-white dark:bg-slate-700 rounded-[26px] shadow-xl transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
           style={{
             width: `calc(${100 / tabs.length}% - 4px)`,
             transform: `translateX(${activeTabIndex * 100}%)`,
@@ -274,7 +275,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
               key={tab.id}
               onClick={() => setActiveTab(tab.id)} 
               className={`relative flex-1 py-4 px-4 md:px-8 rounded-[26px] text-[10px] md:text-[11px] font-black uppercase transition-all flex items-center justify-center gap-3 z-10 ${
-                isActive ? 'text-blue-600' : 'text-slate-500 hover:text-slate-700'
+                isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
               }`}
             >
               <span className={`transition-transform duration-300 ${isActive ? 'scale-110' : 'scale-100'}`}>
@@ -290,18 +291,18 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
       <div className="relative min-h-[400px]">
         {activeTab === 'transactions' && (
           <div className="space-y-6 md:space-y-10 animate-tabContentIn">
-            <div className="bg-slate-900 p-6 md:p-12 rounded-[32px] md:rounded-[56px] text-white shadow-2xl relative overflow-hidden">
+            <div className="bg-slate-900 dark:bg-slate-950 p-6 md:p-12 rounded-[32px] md:rounded-[56px] text-white shadow-2xl relative overflow-hidden border border-white/5 dark:border-slate-800/50">
                <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-12">
                   <div className="flex flex-col gap-1 md:gap-3 text-center md:text-left">
-                    <span className="text-[10px] font-black text-blue-400 uppercase tracking-[0.4em]">Faturamento Total</span>
+                    <span className="text-[10px] font-black text-blue-400 dark:text-blue-300 uppercase tracking-[0.4em]">Faturamento Total</span>
                     <span className="text-3xl md:text-5xl font-black tracking-tight">{totalSales.toLocaleString()} Kz</span>
                   </div>
                   <div className="flex flex-col gap-1 md:gap-3 border-t md:border-t-0 md:border-l border-white/10 pt-6 md:pt-0 md:pl-12 text-center md:text-left">
-                    <span className="text-[10px] font-black text-rose-400 uppercase tracking-[0.4em]">Custos Totais</span>
+                    <span className="text-[10px] font-black text-rose-400 dark:text-rose-300 uppercase tracking-[0.4em]">Custos Totais</span>
                     <span className="text-2xl md:text-3xl font-black tracking-tight">{totalOut.toLocaleString()} Kz</span>
                   </div>
                   <div className="flex flex-col gap-1 md:gap-3 border-t md:border-t-0 md:border-l border-white/10 pt-6 md:pt-0 md:pl-12 text-center md:text-left">
-                    <span className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.4em]">Saldo Líquido</span>
+                    <span className="text-[10px] font-black text-emerald-400 dark:text-emerald-300 uppercase tracking-[0.4em]">Saldo Líquido</span>
                     <span className="text-2xl md:text-3xl font-black tracking-tight">{(totalSales - totalOut).toLocaleString()} Kz</span>
                   </div>
                </div>
@@ -310,7 +311,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
 
             <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-2">
               {(['all', 'sale', 'expense', 'investment'] as const).map(type => (
-                <button key={type} onClick={() => setFilterType(type)} className={`flex-shrink-0 px-8 py-4 rounded-full text-[10px] font-black uppercase transition-all border ${filterType === type ? 'bg-blue-600 text-white border-blue-600 shadow-xl' : 'bg-white text-slate-400 border-slate-100 hover:border-blue-200'}`}>
+                <button key={type} onClick={() => setFilterType(type)} className={`flex-shrink-0 px-8 py-4 rounded-full text-[10px] font-black uppercase transition-all border ${filterType === type ? 'bg-blue-600 dark:bg-blue-500 text-white border-blue-600 dark:border-blue-500 shadow-xl' : 'bg-white dark:bg-slate-900 text-slate-400 dark:text-slate-500 border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-800'}`}>
                   {type === 'all' ? 'Tudo' : type === 'sale' ? 'Vendas' : type === 'expense' ? 'Saídas' : 'Investimento'}
                 </button>
               ))}
@@ -325,28 +326,29 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
                     <button 
                       onClick={() => toggleDate(group.date)}
                       className={`w-full flex items-center justify-between p-4 md:p-6 rounded-[24px] md:rounded-[32px] transition-all duration-300 ${
-                        isExpanded ? 'bg-blue-50/50 border-blue-100 shadow-sm' : 'bg-white hover:bg-slate-50 border-slate-100'
+                        isExpanded ? 'bg-blue-50/50 dark:bg-blue-950/20 border-blue-100 dark:border-blue-900/50 shadow-sm' : 'bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 border-slate-100 dark:border-slate-800'
                       } border`}
                     >
                       <div className="flex items-center gap-3 md:gap-4">
-                        <div className={`p-2 rounded-xl transition-colors ${isExpanded ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
-                          <ChevronDown size={16} md:size={18} className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : 'rotate-0'}`} />
+                        <div className={`p-2 rounded-xl transition-colors ${isExpanded ? 'bg-blue-600 dark:bg-blue-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'}`}>
+                          <ChevronDown size={16} className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : 'rotate-0'}`} />
                         </div>
                         <div className="flex flex-col items-start text-left">
-                          <h4 className="text-xs md:text-sm font-black text-slate-900 uppercase tracking-widest">
+                          <h4 className="text-xs md:text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">
                             {new Date(group.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
                           </h4>
-                          <span className="text-[9px] font-bold text-slate-400 mt-0.5">{group.count} transações</span>
+                          <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 mt-0.5">{group.count} transações</span>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-4 md:gap-6">
                         <div className="flex gap-2 md:gap-4 font-black text-[10px] md:text-xs uppercase tracking-widest">
-                          <span className="text-emerald-600">+{group.sales.toLocaleString()}</span>
-                          <span className="text-rose-500">-{group.expenses.toLocaleString()}</span>
+                          <span className="text-emerald-600 dark:text-emerald-400">+{group.sales.toLocaleString()}</span>
+                          <span className="text-rose-500 dark:text-rose-400">-{group.expenses.toLocaleString()}</span>
+                          {group.investments > 0 && <span className="text-amber-600 dark:text-amber-400">-{group.investments.toLocaleString()}</span>}
                         </div>
                         <div className={`hidden sm:block px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest ${
-                          isExpanded ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'
+                          isExpanded ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'
                         }`}>
                           {isExpanded ? 'RECOLHER' : 'DETALHES'}
                         </div>
@@ -359,17 +361,29 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
                     }`}>
                       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4 pb-4">
                         {group.items.map(t => (
-                          <div key={t.id} className="bg-white p-4 md:p-6 rounded-[24px] md:rounded-[36px] border border-slate-100 shadow-sm flex items-center justify-between hover:shadow-xl transition-all group border-l-4 md:border-l-8 border-l-transparent hover:border-l-blue-500 animate-fadeIn">
+                          <div key={t.id} className={`bg-white dark:bg-slate-900 p-4 md:p-6 rounded-[24px] md:rounded-[36px] border border-slate-100 dark:border-slate-800 shadow-sm flex items-center justify-between hover:shadow-xl transition-all group border-l-4 md:border-l-8 animate-fadeIn ${
+                            t.type === 'sale' ? 'hover:border-l-emerald-500 dark:hover:border-l-emerald-400' : t.type === 'investment' ? 'hover:border-l-amber-500 dark:hover:border-l-amber-400' : 'hover:border-l-rose-500 dark:hover:border-l-rose-400'
+                          }`}>
                             <div className="flex items-center gap-3 md:gap-5">
-                              <div className={`p-3 md:p-4 rounded-xl md:rounded-[22px] ${t.type === 'sale' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
-                                {t.type === 'sale' ? <TrendingUp size={20} md:size={24} /> : <TrendingDown size={20} md:size={24} />}
+                              <div className={`p-3 md:p-4 rounded-xl md:rounded-[22px] ${
+                                t.type === 'sale' ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400' : 
+                                t.type === 'investment' ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400' : 
+                                'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400'
+                              }`}>
+                                {t.type === 'sale' ? <TrendingUp size={20} /> : 
+                                 t.type === 'investment' ? <Landmark size={20} /> : 
+                                 <TrendingDown size={20} />}
                               </div>
                               <div className="flex flex-col">
-                                <span className="font-black text-slate-800 text-sm md:text-base mb-0.5 md:mb-1">{t.category}</span>
-                                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">{new Date(t.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                <span className="font-black text-slate-800 dark:text-slate-200 text-sm md:text-base mb-0.5 md:mb-1">{t.category}</span>
+                                <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">{new Date(t.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                               </div>
                             </div>
-                            <span className={`font-black text-sm md:text-lg ${t.type === 'sale' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            <span className={`font-black text-sm md:text-lg ${
+                              t.type === 'sale' ? 'text-emerald-600 dark:text-emerald-400' : 
+                              t.type === 'investment' ? 'text-amber-600 dark:text-amber-400' : 
+                              'text-rose-600 dark:text-rose-400'
+                            }`}>
                               {t.type === 'sale' ? '+' : '-'} {t.amount.toLocaleString()} Kz
                             </span>
                           </div>
@@ -387,23 +401,23 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
           <div className="space-y-6 md:space-y-10 animate-tabContentIn pb-12">
             {phStats && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-                <div className="bg-white p-4 md:p-8 rounded-[24px] md:rounded-[44px] border border-slate-100 shadow-sm flex flex-col items-center text-center">
-                   <div className="p-3 md:p-4 bg-blue-50 rounded-2xl md:rounded-3xl text-blue-600 mb-3 md:mb-4"><Activity size={20} md:size={24} /></div>
-                   <span className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 md:mb-2">pH Médio</span>
-                   <span className="text-xl md:text-3xl font-black text-slate-900">{phStats.avg.toFixed(2)}</span>
+                <div className="bg-white dark:bg-slate-900 p-4 md:p-8 rounded-[24px] md:rounded-[44px] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center text-center">
+                   <div className="p-3 md:p-4 bg-blue-50 dark:bg-blue-950/30 rounded-2xl md:rounded-3xl text-blue-600 dark:text-blue-400 mb-3 md:mb-4"><Activity size={20} /></div>
+                   <span className="text-[9px] md:text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 md:mb-2">pH Médio</span>
+                   <span className="text-xl md:text-3xl font-black text-slate-900 dark:text-slate-100">{phStats.avg.toFixed(2)}</span>
                 </div>
-                <div className="bg-white p-4 md:p-8 rounded-[24px] md:rounded-[44px] border border-slate-100 shadow-sm flex flex-col items-center text-center">
-                   <div className="p-3 md:p-4 bg-emerald-50 rounded-2xl md:rounded-3xl text-emerald-600 mb-3 md:mb-4"><ArrowUp size={20} md:size={24} /></div>
-                   <span className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 md:mb-2">Máximo</span>
-                   <span className="text-xl md:text-3xl font-black text-slate-900">{phStats.max.toFixed(1)}</span>
+                <div className="bg-white dark:bg-slate-900 p-4 md:p-8 rounded-[24px] md:rounded-[44px] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center text-center">
+                   <div className="p-3 md:p-4 bg-emerald-50 dark:bg-emerald-950/30 rounded-2xl md:rounded-3xl text-emerald-600 dark:text-emerald-400 mb-3 md:mb-4"><ArrowUp size={20} /></div>
+                   <span className="text-[9px] md:text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 md:mb-2">Máximo</span>
+                   <span className="text-xl md:text-3xl font-black text-slate-900 dark:text-slate-100">{phStats.max.toFixed(1)}</span>
                 </div>
-                <div className="bg-white p-4 md:p-8 rounded-[24px] md:rounded-[44px] border border-slate-100 shadow-sm flex flex-col items-center text-center">
-                   <div className="p-3 md:p-4 bg-rose-50 rounded-2xl md:rounded-3xl text-rose-600 mb-3 md:mb-4"><ArrowDown size={20} md:size={24} /></div>
-                   <span className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 md:mb-2">Mínimo</span>
-                   <span className="text-xl md:text-3xl font-black text-slate-900">{phStats.min.toFixed(1)}</span>
+                <div className="bg-white dark:bg-slate-900 p-4 md:p-8 rounded-[24px] md:rounded-[44px] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center text-center">
+                   <div className="p-3 md:p-4 bg-rose-50 dark:bg-rose-950/30 rounded-2xl md:rounded-3xl text-rose-600 dark:text-rose-400 mb-3 md:mb-4"><ArrowDown size={20} /></div>
+                   <span className="text-[9px] md:text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 md:mb-2">Mínimo</span>
+                   <span className="text-xl md:text-3xl font-black text-slate-900 dark:text-slate-100">{phStats.min.toFixed(1)}</span>
                 </div>
-                <div className="bg-blue-600 p-4 md:p-8 rounded-[24px] md:rounded-[44px] shadow-2xl flex flex-col items-center text-center text-white">
-                   <div className="p-3 md:p-4 bg-white/20 rounded-2xl md:rounded-3xl mb-3 md:mb-4"><ShieldCheck size={20} md:size={24} /></div>
+                <div className="bg-blue-600 dark:bg-blue-700 p-4 md:p-8 rounded-[24px] md:rounded-[44px] shadow-2xl flex flex-col items-center text-center text-white">
+                   <div className="p-3 md:p-4 bg-white/20 rounded-2xl md:rounded-3xl mb-3 md:mb-4"><ShieldCheck size={20} /></div>
                    <span className="text-[9px] md:text-[10px] font-black text-blue-100 uppercase tracking-widest mb-1 md:mb-2">Estabilidade</span>
                    <span className="text-xl md:text-3xl font-black">{phStats.stability}%</span>
                 </div>
@@ -412,26 +426,26 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-10">
               <div className="lg:col-span-2 space-y-6 md:space-y-8">
-                <div className="bg-white p-6 md:p-12 rounded-[32px] md:rounded-[56px] border border-slate-100 shadow-xl relative overflow-hidden">
+                <div className="bg-white dark:bg-slate-900 p-6 md:p-12 rounded-[32px] md:rounded-[56px] border border-slate-100 dark:border-slate-800 shadow-xl relative overflow-hidden">
                   <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 md:mb-12 gap-6 relative z-10">
                     <div className="flex flex-col">
-                      <h3 className="text-lg md:text-xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-                        <ShieldCheck className="text-blue-600" size={20} md:size={24} /> Pureza e Controle
+                      <h3 className="text-lg md:text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-3">
+                        <ShieldCheck className="text-blue-600 dark:text-blue-400" size={20} /> Pureza e Controle
                       </h3>
-                      <span className="text-[10px] text-blue-600 font-black uppercase tracking-widest mt-1">Histórico Lab Diário</span>
+                      <span className="text-[10px] text-blue-600 dark:text-blue-400 font-black uppercase tracking-widest mt-1">Histórico Lab Diário</span>
                     </div>
                     
                     <div className="flex flex-wrap items-center gap-2 md:gap-3">
                       <button 
                         onClick={setToday}
-                        className={`px-3 md:px-4 py-2 md:py-3 rounded-xl md:rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all ${isToday ? 'bg-blue-600 text-white shadow-lg' : 'bg-slate-50 text-slate-400 border border-slate-100 hover:border-blue-100'}`}
+                        className={`px-3 md:px-4 py-2 md:py-3 rounded-xl md:rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all ${isToday ? 'bg-blue-600 dark:bg-blue-500 text-white shadow-lg' : 'bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-100 dark:border-slate-700 hover:border-blue-100 dark:hover:border-blue-900'}`}
                       >
                         Hoje
                       </button>
-                      <div className="flex items-center bg-slate-50 p-1 md:p-2 rounded-2xl md:rounded-3xl border border-slate-100">
-                        <button onClick={() => changeQualityDate(-1)} className="p-2 md:p-3 text-slate-400 hover:text-blue-600 transition-all"><ChevronLeft size={20} md:size={24} /></button>
-                        <input type="date" value={qualityDate} onChange={(e) => setQualityDate(e.target.value)} className="bg-transparent text-[11px] md:text-sm font-black text-slate-800 text-center focus:outline-none w-24 md:w-32" />
-                        <button onClick={() => changeQualityDate(1)} disabled={isToday} className="p-2 md:p-3 text-slate-400 hover:text-blue-600 disabled:opacity-20 transition-all"><ChevronRight size={20} md:size={24} /></button>
+                      <div className="flex items-center bg-slate-50 dark:bg-slate-800 p-1 md:p-2 rounded-2xl md:rounded-3xl border border-slate-100 dark:border-slate-700">
+                        <button onClick={() => changeQualityDate(-1)} className="p-2 md:p-3 text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 transition-all"><ChevronLeft size={20} /></button>
+                        <input type="date" value={qualityDate} onChange={(e) => setQualityDate(e.target.value)} className="bg-transparent text-[11px] md:text-sm font-black text-slate-800 dark:text-slate-200 text-center focus:outline-none w-24 md:w-32" />
+                        <button onClick={() => changeQualityDate(1)} disabled={isToday} className="p-2 md:p-3 text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-20 transition-all"><ChevronRight size={20} /></button>
                       </div>
                     </div>
                   </div>
@@ -446,7 +460,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
                               <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
                             </linearGradient>
                           </defs>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
                           <XAxis dataKey="time" tick={{fontSize: 9, fontWeight: 900, fill: '#64748b'}} axisLine={false} tickLine={false} />
                           <YAxis domain={[5, 10]} ticks={[6, 7, 8, 9]} tick={{fontSize: 9, fontWeight: 800, fill: '#94a3b8'}} axisLine={false} tickLine={false} />
                           <Tooltip content={<CustomPHTooltip />} animationDuration={150} cursor={{ stroke: '#2563eb', strokeWidth: 2, strokeDasharray: '5 5' }} />
@@ -455,9 +469,9 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
                              <Label value="FAIXA PREMIUM" position="insideTopLeft" fill={COLORS.Ideal} fontSize={8} fontWeight={900} offset={10} />
                           </ReferenceArea>
                           
-                          <Area type="monotone" dataKey="value" stroke="#2563eb" strokeWidth={3} md:strokeWidth={5} fill="url(#phGrad)" animationDuration={1500} dot={<RenderCustomDot />} activeDot={{ r: 10, strokeWidth: 3, stroke: '#fff' }} />
+                          <Area type="monotone" dataKey="value" stroke="#2563eb" strokeWidth={3} fill="url(#phGrad)" animationDuration={1500} dot={<RenderCustomDot />} activeDot={{ r: 10, strokeWidth: 3, stroke: '#fff' }} />
                           
-                          <Brush dataKey="time" height={30} stroke="#2563eb" fill="#f8fafc" travellerWidth={15}>
+                          <Brush dataKey="time" height={30} stroke="#2563eb" fill="transparent" travellerWidth={15}>
                             <AreaChart>
                                <Area type="monotone" dataKey="value" stroke="#2563eb" fill="#2563eb" fillOpacity={0.1} />
                             </AreaChart>
@@ -465,9 +479,9 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
                         </AreaChart>
                       </ResponsiveContainer>
                     ) : (
-                      <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4 md:gap-6 border-4 border-dashed border-slate-50 rounded-[32px] md:rounded-[48px]">
-                         <div className="p-6 md:p-10 bg-white rounded-full shadow-2xl"><Droplet size={48} md:size={64} className="text-slate-100" /></div>
-                         <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400">Aguardando medições.</p>
+                      <div className="h-full flex flex-col items-center justify-center text-slate-300 dark:text-slate-700 gap-4 md:gap-6 border-4 border-dashed border-slate-50 dark:border-slate-800 rounded-[32px] md:rounded-[48px]">
+                         <div className="p-6 md:p-10 bg-white dark:bg-slate-800 rounded-full shadow-2xl"><Droplet size={48} className="text-slate-100 dark:text-slate-900" /></div>
+                         <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-600">Aguardando medições.</p>
                       </div>
                     )}
                   </div>
@@ -475,38 +489,38 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
               </div>
 
               <div className="lg:col-span-1 space-y-4 md:space-y-6">
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-4">Protocolos de Segurança</h4>
+                <h4 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-4">Protocolos de Segurança</h4>
                 <div className="space-y-3 md:space-y-4">
-                   <div className="bg-white p-6 md:p-8 rounded-[32px] md:rounded-[40px] border border-slate-100 shadow-sm flex items-start gap-4 md:gap-5">
-                      <div className="p-3 md:p-4 bg-emerald-50 text-emerald-600 rounded-2xl md:rounded-3xl"><ShieldCheck size={24} md:size={28} /></div>
+                   <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[32px] md:rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm flex items-start gap-4 md:gap-5">
+                      <div className="p-3 md:p-4 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 rounded-2xl md:rounded-3xl"><ShieldCheck size={24} /></div>
                       <div>
                          <div className="flex justify-between items-center mb-1">
-                            <span className="font-black text-slate-900 text-xs md:text-sm uppercase">ZONA SEGURA</span>
-                            <span className="text-[9px] md:text-[10px] font-black text-emerald-600">6.8 - 7.5</span>
+                            <span className="font-black text-slate-900 dark:text-slate-100 text-xs md:text-sm uppercase">ZONA SEGURA</span>
+                            <span className="text-[9px] md:text-[10px] font-black text-emerald-600 dark:text-emerald-400">6.8 - 7.5</span>
                          </div>
-                         <p className="text-[10px] md:text-[11px] text-slate-500 font-medium">Equilíbrio perfeito. Própria para envase imediato.</p>
+                         <p className="text-[10px] md:text-[11px] text-slate-500 dark:text-slate-400 font-medium">Equilíbrio perfeito. Própria para envase imediato.</p>
                       </div>
                    </div>
-                   <div className="bg-white p-6 md:p-8 rounded-[32px] md:rounded-[40px] border border-slate-100 shadow-sm flex items-start gap-4 md:gap-5">
-                      <div className="p-3 md:p-4 bg-rose-50 text-rose-600 rounded-2xl md:rounded-3xl"><Activity size={24} md:size={28} /></div>
+                   <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[32px] md:rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm flex items-start gap-4 md:gap-5">
+                      <div className="p-3 md:p-4 bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 rounded-2xl md:rounded-3xl"><Activity size={24} /></div>
                       <div>
                          <div className="flex justify-between items-center mb-1">
-                            <span className="font-black text-slate-900 text-xs md:text-sm uppercase">ZONA DE RISCO</span>
-                            <span className="text-[9px] md:text-[10px] font-black text-rose-600">&lt; 6.5 / &gt; 8.0</span>
+                            <span className="font-black text-slate-900 dark:text-slate-100 text-xs md:text-sm uppercase">ZONA DE RISCO</span>
+                            <span className="text-[9px] md:text-[10px] font-black text-rose-600 dark:text-rose-400">&lt; 6.5 / &gt; 8.0</span>
                          </div>
-                         <p className="text-[10px] md:text-[11px] text-slate-500 font-medium">Bloqueio automático de lote e limpeza de filtros.</p>
+                         <p className="text-[10px] md:text-[11px] text-slate-500 dark:text-slate-400 font-medium">Bloqueio automático de lote e limpeza de filtros.</p>
                       </div>
                    </div>
                    <button 
                       onClick={() => setShowPHForm(true)}
-                      className="w-full bg-slate-900 p-8 md:p-10 rounded-[32px] md:rounded-[44px] shadow-2xl text-left text-white group hover:scale-[1.02] transition-transform active:scale-95"
+                      className="w-full bg-slate-900 dark:bg-slate-950 p-8 md:p-10 rounded-[32px] md:rounded-[44px] shadow-2xl text-left text-white group hover:scale-[1.02] transition-transform active:scale-95 border border-white/5 dark:border-slate-800/50"
                     >
                       <div className="flex items-center justify-between mb-3 md:mb-4">
-                         <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest opacity-60">Operação Manual</span>
-                         <Plus size={20} md:size={24} className="text-blue-500 group-hover:rotate-90 transition-transform" />
+                         <span className="text-[10px] font-black text-blue-400 dark:text-blue-300 uppercase tracking-widest opacity-60">Operação Manual</span>
+                         <Plus size={20} className="text-blue-500 dark:text-blue-400 group-hover:rotate-90 transition-transform" />
                       </div>
                       <h3 className="text-lg md:text-xl font-black mb-1 md:mb-2">Registrar pH</h3>
-                      <p className="text-[9px] md:text-[10px] text-slate-400 font-bold uppercase tracking-widest">Validar pureza do lote atual.</p>
+                      <p className="text-[9px] md:text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Validar pureza do lote atual.</p>
                    </button>
                 </div>
               </div>
@@ -514,14 +528,14 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
 
             {showPHForm && (
               <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-6">
-                <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xl" onClick={() => setShowPHForm(false)} />
-                <div className="relative bg-white w-full max-w-lg rounded-[40px] md:rounded-[64px] p-8 md:p-16 shadow-2xl animate-premium text-center">
+                <div className="absolute inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-xl" onClick={() => setShowPHForm(false)} />
+                <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-[40px] md:rounded-[64px] p-8 md:p-16 shadow-2xl animate-premium text-center border border-white/40 dark:border-slate-800/40">
                   <div className="flex justify-between items-center mb-8 md:mb-10">
-                     <h3 className="text-2xl md:text-3xl font-black text-slate-900">Nova Medição</h3>
-                     <button onClick={() => setShowPHForm(false)} className="text-slate-300 p-2 hover:bg-slate-50 rounded-full transition-all"><X size={28} md:size={32} /></button>
+                     <h3 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-slate-100">Nova Medição</h3>
+                     <button onClick={() => setShowPHForm(false)} className="text-slate-300 dark:text-slate-600 p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full transition-all"><X size={28} /></button>
                   </div>
                   <form onSubmit={handlePHSubmit} className="space-y-8 md:space-y-12">
-                     <input type="number" step="0.1" value={phValue} onChange={e => setPhValue(e.target.value)} placeholder="7.0" className="w-full bg-slate-50 border border-slate-100 rounded-[32px] md:rounded-[40px] py-10 md:py-16 text-6xl md:text-8xl font-black text-center focus:ring-8 focus:ring-blue-100 focus:outline-none" autoFocus required />
+                     <input type="number" step="0.1" value={phValue} onChange={e => setPhValue(e.target.value)} placeholder="7.0" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[32px] md:rounded-[40px] py-10 md:py-16 text-6xl md:text-8xl font-black text-center text-slate-900 dark:text-slate-100 focus:ring-8 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:outline-none" autoFocus required />
                      <button type="submit" className="w-full bg-blue-600 text-white font-black py-5 md:py-7 rounded-[24px] md:rounded-[32px] shadow-2xl transition-all text-sm tracking-widest active:scale-95">
                        CONFIRMAR PUREZA
                      </button>

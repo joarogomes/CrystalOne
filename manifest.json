@@ -1,0 +1,21 @@
+{
+  "name": "CrystalOne - Gestão de Purificadora",
+  "short_name": "CrystalOne",
+  "description": "Gestão estratégica para purificadoras de água",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "https://picsum.photos/seed/crystalone/192/192",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://picsum.photos/seed/crystalone/512/512",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -54,7 +54,6 @@ export interface BusinessState {
   inventory: InventoryItem[];
   inventoryMovements: InventoryMovement[];
   phRecords: PHRecord[];
-  notifications: AppNotification[];
 }
 
 export interface Store {

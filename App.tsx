@@ -153,6 +153,8 @@ const App: React.FC = () => {
     };
 
     loadData();
+    const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+    console.log("Status da IA:", apiKey ? "Configurada" : "Não configurada");
   }, [activeStoreId, isAuthenticated]);
 
   const testSupabaseWrite = async () => {

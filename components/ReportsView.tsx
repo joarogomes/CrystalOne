@@ -5,7 +5,7 @@ import AIAdvisor from './AIAdvisor';
 import { jsPDF } from 'jspdf';
 import { 
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  AreaChart, Area, ReferenceArea, Label, Brush
+  AreaChart, Area, ReferenceArea, Label, Brush, BarChart, Bar
 } from 'recharts';
 import { 
   History, 
@@ -25,7 +25,8 @@ import {
   TrendingDown,
   AlertCircle,
   ChevronDown,
-  Landmark
+  Landmark,
+  CalendarDays
 } from 'lucide-react';
 
 interface ReportsViewProps {
@@ -198,6 +199,31 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
 
   const totalSales = useMemo(() => state.transactions.filter(t => t.type === 'sale').reduce((s,t) => s+t.amount, 0), [state.transactions]);
   const totalOut = useMemo(() => state.transactions.filter(t => t.type !== 'sale').reduce((s,t) => s+t.amount, 0), [state.transactions]);
+
+  const salesChartData = useMemo(() => {
+    const sales = state.transactions.filter(t => t.type === 'sale');
+    const groups: Record<string, number> = {};
+
+    sales.forEach(t => {
+      const date = new Date(t.created_at);
+      let key = '';
+      
+      if (salesTimeFilter === 'day') {
+        key = date.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
+      } else if (salesTimeFilter === 'week') {
+        const firstDay = new Date(date.setDate(date.getDate() - date.getDay()));
+        key = `Sem. ${firstDay.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' })}`;
+      } else {
+        key = date.toLocaleDateString('pt-PT', { month: 'short', year: '2-digit' });
+      }
+
+      groups[key] = (groups[key] || 0) + t.amount;
+    });
+
+    return Object.entries(groups)
+      .map(([name, value]) => ({ name, value }))
+      .slice(-12); // Last 12 periods
+  }, [state.transactions, salesTimeFilter]);
 
   const handlePHSubmit = (e: React.FormEvent) => {
     e.preventDefault();

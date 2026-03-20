@@ -1,9 +1,9 @@
 
 import React, { useState, useMemo } from 'react';
 import { Transaction, TransactionType } from '../types';
-import { Plus, X, Calendar, TrendingDown, Landmark, Info, ChevronLeft, ChevronRight, Edit3, List, ShoppingCart, PieChart as PieIcon } from 'lucide-react';
+import { Plus, X, Calendar, TrendingDown, Landmark, Info, ChevronLeft, ChevronRight, Edit3, List, ShoppingCart, PieChart as PieIcon, TrendingUp } from 'lucide-react';
 import { SALE_CATEGORIES, EXPENSE_CATEGORIES, INVESTMENT_CATEGORIES, QUICK_SALE_ITEMS } from '../constants';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
 import { Zap } from 'lucide-react';
 
 interface TransactionFormProps {
@@ -24,6 +24,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
   const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [description, setDescription] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [salesTimeFilter, setSalesTimeFilter] = useState<'day' | 'week' | 'month'>('day');
 
   const activeType = type === 'sale' ? 'sale' : subType;
   const categories = activeType === 'sale' ? SALE_CATEGORIES : 
@@ -148,6 +149,32 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
 
   const filteredTransactions = transactions.filter(t => t.type === activeType).reverse();
 
+  const salesChartData = useMemo(() => {
+    if (type !== 'sale') return [];
+    const sales = transactions.filter(t => t.type === 'sale');
+    const groups: Record<string, number> = {};
+
+    sales.forEach(t => {
+      const date = new Date(t.created_at);
+      let key = '';
+      
+      if (salesTimeFilter === 'day') {
+        key = date.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
+      } else if (salesTimeFilter === 'week') {
+        const firstDay = new Date(date.setDate(date.getDate() - date.getDay()));
+        key = `Sem. ${firstDay.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' })}`;
+      } else {
+        key = date.toLocaleDateString('pt-PT', { month: 'short', year: '2-digit' });
+      }
+
+      groups[key] = (groups[key] || 0) + t.amount;
+    });
+
+    return Object.entries(groups)
+      .map(([name, value]) => ({ name, value }))
+      .slice(-12); // Last 12 periods
+  }, [transactions, salesTimeFilter, type]);
+
   const toggleCategoryMode = () => {
     setIsCustomCategory(!isCustomCategory);
     setCategory('');
@@ -217,6 +244,79 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
                 <span className="text-xs font-black text-blue-600 dark:text-blue-400">{item.price.toLocaleString()} Kz</span>
               </button>
             ))}
+          </div>
+        )}
+
+        {type === 'sale' && (
+          <div className="bg-white dark:bg-slate-900 p-6 md:p-10 rounded-[32px] md:rounded-[48px] border border-slate-100 dark:border-slate-800 shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 md:mb-12">
+              <div className="flex items-center gap-4">
+                <div className="p-3 md:p-4 bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 rounded-2xl md:rounded-3xl">
+                  <TrendingUp size={24} />
+                </div>
+                <div>
+                  <h3 className="text-lg md:text-xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Evolução de Vendas</h3>
+                  <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">Análise de Receita por Período</p>
+                </div>
+              </div>
+
+              <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl md:rounded-3xl">
+                {(['day', 'week', 'month'] as const).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setSalesTimeFilter(t)}
+                    className={`px-4 md:px-6 py-2.5 rounded-xl md:rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all ${
+                      salesTimeFilter === t 
+                        ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' 
+                        : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
+                    }`}
+                  >
+                    {t === 'day' ? 'Dia' : t === 'week' ? 'Semana' : 'Mês'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="h-[300px] md:h-[400px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={salesChartData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 800 }} 
+                    dy={10}
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 800 }}
+                    tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                  />
+                  <Tooltip 
+                    cursor={{ fill: '#f8fafc', opacity: 0.4 }}
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-slate-900 p-4 rounded-2xl shadow-2xl border border-white/10 animate-premium">
+                            <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">{payload[0].payload.name}</p>
+                            <p className="text-lg font-black text-white">{payload[0].value?.toLocaleString()} Kz</p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Bar 
+                    dataKey="value" 
+                    fill="#2563eb" 
+                    radius={[8, 8, 0, 0]} 
+                    barSize={salesTimeFilter === 'day' ? 20 : 40}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         )}
 

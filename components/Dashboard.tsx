@@ -65,6 +65,7 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell }) => {
   const [marketingTip, setMarketingTip] = useState<string | null>(null);
   const [loadingTip, setLoadingTip] = useState(false);
+  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
 
   const todayStr = new Date().toISOString().split('T')[0];
   const todayTransactions = state.transactions.filter(t => t.created_at.startsWith(todayStr));
@@ -204,7 +205,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell }) => {
       </div>
 
       {/* Marketing Tip Section */}
-      {marketingTip && (
+      {marketingTip && apiKey && (
         <div className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-slate-900 dark:to-amber-950/20 p-6 md:p-10 rounded-[32px] md:rounded-[48px] border border-amber-100 dark:border-amber-900/30 shadow-sm relative overflow-hidden group">
           <div className="relative z-10 flex flex-col md:flex-row items-center gap-6 md:gap-10">
             <div className="p-5 md:p-6 bg-amber-500 text-white rounded-3xl shadow-xl shadow-amber-200 dark:shadow-amber-900/20 group-hover:scale-110 transition-transform">
@@ -234,7 +235,18 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell }) => {
               <Calendar size={20} className="text-blue-500" />
               Evolução Financeira CrystalOne
             </h3>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mt-1">Comparativo de faturamento, lucro e despesas mensais</p>
+            <div className="flex items-center gap-4 mt-1">
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Comparativo de faturamento, lucro e despesas mensais</p>
+              <button 
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('switchView', { detail: 'reports' }));
+                  localStorage.setItem('reports_active_tab', 'transactions');
+                }}
+                className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest hover:underline"
+              >
+                Ver Gráfico de Vendas →
+              </button>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-4 md:gap-6 bg-slate-50/50 dark:bg-slate-800/50 p-3 md:p-4 rounded-3xl border border-slate-100 dark:border-slate-700">

@@ -54,7 +54,13 @@ const getContextPrompt = (state: BusinessState) => {
 };
 
 export const getDailyMarketingTip = async (state: BusinessState): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    console.warn("GEMINI_API_KEY não configurada. Usando dica padrão.");
+    return "Crie um combo especial: na compra de 5 galões, a entrega é grátis hoje!";
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
   const context = getContextPrompt(state);
   const prompt = `Com base nos dados da CrystalOne fornecidos, crie uma ÚNICA dica de marketing diária curta (máximo 280 caracteres). A dica deve ser extremamente prática, criativa e focada em resultados imediatos (WhatsApp, combos ou fidelização). Use um tom motivador.`;
 
@@ -72,7 +78,12 @@ export const getDailyMarketingTip = async (state: BusinessState): Promise<string
 };
 
 export const getBusinessInsights = async (state: BusinessState, type: 'daily' | 'monthly' = 'daily'): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return "A chave da IA não está configurada. Por favor, adicione a GEMINI_API_KEY nas configurações.";
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
   const context = getContextPrompt(state);
 
   const requestPrompt = type === 'monthly' 
@@ -97,7 +108,12 @@ export const getBusinessInsights = async (state: BusinessState, type: 'daily' | 
 };
 
 export const getStockPredictions = async (state: BusinessState): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return "A chave da IA não está configurada para previsões de estoque.";
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
   const context = getContextPrompt(state);
   
   const movements = state.inventoryMovements
@@ -131,7 +147,12 @@ export const getStockPredictions = async (state: BusinessState): Promise<string>
 };
 
 export const sendChatMessage = async (state: BusinessState, history: ChatMessage[], newMessage: string): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return "Chat desativado: GEMINI_API_KEY ausente.";
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
   const systemInstruction = getContextPrompt(state) + "\nResponda como um mentor de negócios focado em resultados. Use emojis ocasionalmente para ser amigável mas mantenha o profissionalismo.";
 
   try {

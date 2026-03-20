@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { BusinessState } from '../types';
 import { getBusinessInsights, sendChatMessage, getStockPredictions, ChatMessage } from '../services/geminiService';
-import { Sparkles, Loader2, RefreshCw, FileText, Zap, Lightbulb, Send, User, Bot, X, Target, BarChart3 } from 'lucide-react';
+import { Sparkles, Loader2, RefreshCw, FileText, Zap, Lightbulb, Send, User, Bot, X, Target, BarChart3, AlertCircle } from 'lucide-react';
 
 interface AIAdvisorProps {
   state: BusinessState;
@@ -12,6 +12,7 @@ const AIAdvisor: React.FC<AIAdvisorProps> = ({ state }) => {
   const [insight, setInsight] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [analysisType, setAnalysisType] = useState<'daily' | 'monthly' | 'stock'>('daily');
+  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
   
   // Chat States
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -82,7 +83,7 @@ const AIAdvisor: React.FC<AIAdvisorProps> = ({ state }) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 md:gap-3">
               <div className="bg-white/20 p-1.5 md:p-2 rounded-xl backdrop-blur-md">
-                <Sparkles className="text-blue-100" size={18} md:size={20} />
+                <Sparkles className="text-blue-100" size={20} />
               </div>
               <h2 className="text-lg md:text-xl font-black uppercase tracking-tight">Centro de IA</h2>
             </div>
@@ -96,14 +97,26 @@ const AIAdvisor: React.FC<AIAdvisorProps> = ({ state }) => {
         </div>
       </div>
 
-      {!insight && chatMessages.length === 0 && !loading && (
+      {!apiKey && (
+        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 p-6 rounded-[24px] md:rounded-[32px] flex items-start gap-4 animate-premium">
+          <AlertCircle className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-1" size={20} />
+          <div>
+            <h4 className="text-sm font-black text-amber-900 dark:text-amber-100 uppercase tracking-tight mb-1">IA Não Configurada</h4>
+            <p className="text-[10px] md:text-xs text-amber-700 dark:text-amber-400 font-medium leading-relaxed">
+              Para ativar o Centro de IA, você precisa configurar a <span className="font-black">GEMINI_API_KEY</span> no menu de Configurações do AI Studio.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {!insight && chatMessages.length === 0 && !loading && apiKey && (
         <div className="grid grid-cols-1 gap-3 md:gap-4 animate-fadeIn">
           <button 
             onClick={() => fetchInsights('daily')}
             className="bg-white p-4 md:p-6 rounded-[24px] md:rounded-[28px] border border-slate-100 shadow-sm flex items-center gap-3 md:gap-4 active:scale-95 transition-all text-left group"
           >
             <div className="bg-blue-50 p-3 md:p-4 rounded-xl md:rounded-2xl text-blue-600 group-hover:bg-blue-100">
-              <Zap size={20} md:size={24} />
+              <Zap size={24} />
             </div>
             <div>
               <span className="font-black text-slate-800 text-sm block">Chat de Consultoria</span>
@@ -116,7 +129,7 @@ const AIAdvisor: React.FC<AIAdvisorProps> = ({ state }) => {
             className="bg-white p-4 md:p-6 rounded-[24px] md:rounded-[28px] border border-slate-100 shadow-sm flex items-center gap-3 md:gap-4 active:scale-95 transition-all text-left group border-b-4 border-b-emerald-500"
           >
             <div className="bg-emerald-50 p-3 md:p-4 rounded-xl md:rounded-2xl text-emerald-600 group-hover:bg-emerald-100">
-              <BarChart3 size={20} md:size={24} />
+              <BarChart3 size={24} />
             </div>
             <div>
               <span className="font-black text-slate-800 text-sm block">Previsão de Estoque</span>
@@ -129,7 +142,7 @@ const AIAdvisor: React.FC<AIAdvisorProps> = ({ state }) => {
             className="bg-white p-4 md:p-6 rounded-[24px] md:rounded-[28px] border border-slate-100 shadow-sm flex items-center gap-3 md:gap-4 active:scale-95 transition-all text-left group border-b-4 border-b-indigo-500"
           >
             <div className="bg-indigo-50 p-3 md:p-4 rounded-xl md:rounded-2xl text-indigo-600 group-hover:bg-indigo-100">
-              <FileText size={20} md:size={24} />
+              <FileText size={24} />
             </div>
             <div>
               <span className="font-black text-slate-800 text-sm block">Relatório Estratégico</span>
@@ -141,7 +154,7 @@ const AIAdvisor: React.FC<AIAdvisorProps> = ({ state }) => {
 
       {loading && (
         <div className="bg-white p-8 md:p-12 rounded-[24px] md:rounded-[32px] flex flex-col items-center gap-4 shadow-sm border border-slate-100">
-          <Loader2 className="animate-spin text-blue-600" size={32} md:size={40} />
+          <Loader2 className="animate-spin text-blue-600" size={40} />
           <div className="text-center">
             <p className="text-slate-800 text-[10px] md:text-xs font-black uppercase tracking-widest mb-1">Analisando Performance</p>
             <p className="text-slate-400 text-[8px] md:text-[9px] font-bold animate-pulse">Cruzando dados de vendas...</p>

@@ -64,3 +64,5 @@ export interface Store {
 }
 
 export type ViewType = 'dashboard' | 'sales' | 'expenses' | 'inventory' | 'reports';
+
+export type AccessLevel = 'full' | 'operational';

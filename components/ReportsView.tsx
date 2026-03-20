@@ -5,7 +5,7 @@ import AIAdvisor from './AIAdvisor';
 import { jsPDF } from 'jspdf';
 import { 
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  AreaChart, Area, ReferenceArea, Label, Brush, BarChart, Bar
+  AreaChart, Area, ReferenceArea, Label, Brush
 } from 'recharts';
 import { 
   History, 
@@ -112,17 +112,24 @@ const CustomPHTooltip = ({ active, payload }: any) => {
   return null;
 };
 
+const getLocalDateString = (date: Date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "CrystalOne" }) => {
   const [activeTab, setActiveTab] = useState<ReportTab>('transactions');
   const [filterType, setFilterType] = useState<'all' | 'sale' | 'expense' | 'investment'>('all');
   const [phValue, setPhValue] = useState('');
   const [showPHForm, setShowPHForm] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [qualityDate, setQualityDate] = useState(new Date().toISOString().split('T')[0]);
+  const [qualityDate, setQualityDate] = useState(getLocalDateString());
   
   // State for expanded transaction dates
   const [expandedDates, setExpandedDates] = useState<Record<string, boolean>>(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     return { [today]: true };
   });
 
@@ -140,14 +147,14 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
   };
 
   const setToday = () => {
-    setQualityDate(new Date().toISOString().split('T')[0]);
+    setQualityDate(getLocalDateString());
   };
 
-  const isToday = qualityDate === new Date().toISOString().split('T')[0];
+  const isToday = qualityDate === getLocalDateString();
 
   const filteredPhRecords = useMemo(() => {
     return state.phRecords
-      .filter(r => new Date(r.created_at).toISOString().split('T')[0] === qualityDate)
+      .filter(r => getLocalDateString(new Date(r.created_at)) === qualityDate)
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
   }, [state.phRecords, qualityDate]);
 
@@ -183,7 +190,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
     state.transactions
       .filter(t => filterType === 'all' || t.type === filterType)
       .forEach(t => {
-        const dateKey = new Date(t.created_at).toISOString().split('T')[0];
+        const dateKey = getLocalDateString(new Date(t.created_at));
         if (!groups[dateKey]) { 
           groups[dateKey] = { date: dateKey, sales: 0, expenses: 0, investments: 0, count: 0, items: [] }; 
         }
@@ -199,31 +206,6 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
 
   const totalSales = useMemo(() => state.transactions.filter(t => t.type === 'sale').reduce((s,t) => s+t.amount, 0), [state.transactions]);
   const totalOut = useMemo(() => state.transactions.filter(t => t.type !== 'sale').reduce((s,t) => s+t.amount, 0), [state.transactions]);
-
-  const salesChartData = useMemo(() => {
-    const sales = state.transactions.filter(t => t.type === 'sale');
-    const groups: Record<string, number> = {};
-
-    sales.forEach(t => {
-      const date = new Date(t.created_at);
-      let key = '';
-      
-      if (salesTimeFilter === 'day') {
-        key = date.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
-      } else if (salesTimeFilter === 'week') {
-        const firstDay = new Date(date.setDate(date.getDate() - date.getDay()));
-        key = `Sem. ${firstDay.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' })}`;
-      } else {
-        key = date.toLocaleDateString('pt-PT', { month: 'short', year: '2-digit' });
-      }
-
-      groups[key] = (groups[key] || 0) + t.amount;
-    });
-
-    return Object.entries(groups)
-      .map(([name, value]) => ({ name, value }))
-      .slice(-12); // Last 12 periods
-  }, [state.transactions, salesTimeFilter]);
 
   const handlePHSubmit = (e: React.FormEvent) => {
     e.preventDefault();

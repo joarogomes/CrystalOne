@@ -15,6 +15,13 @@ interface TransactionFormProps {
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
 
+const getLocalDateString = (date: Date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transactions }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [amount, setAmount] = useState('');
@@ -23,7 +30,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
   const [customCategory, setCustomCategory] = useState('');
   const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [description, setDescription] = useState('');
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(getLocalDateString());
   const [salesTimeFilter, setSalesTimeFilter] = useState<'day' | 'week' | 'month'>('day');
 
   const activeType = type === 'sale' ? 'sale' : subType;
@@ -126,7 +133,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
     setSelectedDate(current.toISOString().split('T')[0]);
   };
 
-  const isToday = selectedDate === new Date().toISOString().split('T')[0];
+  const isToday = selectedDate === getLocalDateString();
 
   const groupedSales = useMemo(() => {
     if (type !== 'sale') return null;
@@ -134,8 +141,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
     
     transactions
       .filter(t => t.type === 'sale')
-      /* Fix: changed t.date to t.created_at */
-      .filter(t => new Date(t.created_at).toISOString().split('T')[0] === selectedDate)
+      .filter(t => getLocalDateString(new Date(t.created_at)) === selectedDate)
       .forEach(t => {
         /* Fix: changed t.date to t.created_at */
         const dateStr = new Date(t.created_at).toLocaleDateString('pt-BR');

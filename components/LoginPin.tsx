@@ -2,11 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { Droplets, Lock, Delete } from 'lucide-react';
 
+import { AccessLevel } from '../types';
+
 interface LoginPinProps {
-  onSuccess: () => void;
+  onSuccess: (level: AccessLevel) => void;
 }
 
-const REQUIRED_PIN = "244100";
+const PIN_FULL = "244100";
+const PIN_OPERATIONAL = "240041";
 
 const LoginPin: React.FC<LoginPinProps> = ({ onSuccess }) => {
   const [pin, setPin] = useState<string>('');
@@ -26,8 +29,10 @@ const LoginPin: React.FC<LoginPinProps> = ({ onSuccess }) => {
 
   useEffect(() => {
     if (pin.length === 6) {
-      if (pin === REQUIRED_PIN) {
-        onSuccess();
+      if (pin === PIN_FULL) {
+        onSuccess('full');
+      } else if (pin === PIN_OPERATIONAL) {
+        onSuccess('operational');
       } else {
         setError(true);
         // Pequeno delay para mostrar o erro antes de limpar

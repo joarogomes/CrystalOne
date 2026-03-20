@@ -8,7 +8,7 @@ import ReportsView from './components/ReportsView';
 import NotificationToast from './components/NotificationToast';
 import LoginPin from './components/LoginPin';
 import DatabaseSetupView from './components/DatabaseSetupView';
-import { BusinessState, ViewType, Transaction, InventoryItem, InventoryMovement, Store, AppNotification, PHRecord } from './types';
+import { BusinessState, ViewType, Transaction, InventoryItem, InventoryMovement, Store, AppNotification, PHRecord, AccessLevel } from './types';
 import { INITIAL_INVENTORY } from './constants';
 import { supabase } from './services/supabase';
 
@@ -17,6 +17,7 @@ const App: React.FC = () => {
   const [toast, setToast] = useState<AppNotification | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [accessLevel, setAccessLevel] = useState<AccessLevel>('operational');
   const [dbError, setDbError] = useState<string | null>(null);
   const [dbStatus, setDbStatus] = useState<'connected' | 'error' | 'checking'>('checking');
 
@@ -342,13 +343,17 @@ const App: React.FC = () => {
   }
 
   if (!isAuthenticated) {
-    return <LoginPin onSuccess={() => setIsAuthenticated(true)} />;
+    return <LoginPin onSuccess={(level) => {
+      setAccessLevel(level);
+      setIsAuthenticated(true);
+    }} />;
   }
 
   return (
     <Layout 
       activeView={activeView} 
       setActiveView={setActiveView} 
+      accessLevel={accessLevel}
       stores={stores}
       activeStoreId={activeStoreId || ''}
       onSwitchStore={setActiveStoreId}
@@ -370,6 +375,7 @@ const App: React.FC = () => {
           <Dashboard 
             state={{ transactions, inventory, inventoryMovements, phRecords }} 
             onQuickSell={(itemId) => handleUpdateInventory(itemId, -1)}
+            accessLevel={accessLevel}
           />
         )}
         {activeView === 'sales' && <TransactionForm type="sale" onAdd={handleAddTransaction} transactions={transactions} />}

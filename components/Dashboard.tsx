@@ -1,7 +1,7 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
 import { ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, AreaChart, Area, BarChart, Bar, Line, ComposedChart, Legend, ReferenceLine } from 'recharts';
-import { BusinessState } from '../types';
+import { BusinessState, AccessLevel } from '../types';
 import { getDailyMarketingTip } from '../services/geminiService';
 import { TrendingUp, TrendingDown, Wallet, BarChart3, Calendar, Sparkles, AlertCircle, Lightbulb, RefreshCw, Loader2, ShoppingBag, Plus } from 'lucide-react';
 
@@ -60,15 +60,23 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 interface DashboardProps {
   state: BusinessState;
   onQuickSell?: (itemId: string) => void;
+  accessLevel?: AccessLevel;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell }) => {
+const getLocalDateString = (date: Date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, accessLevel = 'full' }) => {
   const [marketingTip, setMarketingTip] = useState<string | null>(null);
   const [loadingTip, setLoadingTip] = useState(false);
   const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
 
-  const todayStr = new Date().toISOString().split('T')[0];
-  const todayTransactions = state.transactions.filter(t => t.created_at.startsWith(todayStr));
+  const todayStr = getLocalDateString();
+  const todayTransactions = state.transactions.filter(t => getLocalDateString(new Date(t.created_at)) === todayStr);
   const todaySalesTotal = todayTransactions.filter(t => t.type === 'sale').reduce((sum, t) => sum + t.amount, 0);
   const todaySalesCount = todayTransactions.filter(t => t.type === 'sale').length;
 
@@ -93,7 +101,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell }) => {
     return state.inventory.slice(0, 4);
   }, [state.inventory]);
 
-  const [activeSeries, setActiveSeries] = useState<string[]>(['sales', 'expenses', 'profit']);
+  const [activeSeries, setActiveSeries] = useState<string[]>(accessLevel === 'full' ? ['sales', 'expenses', 'profit'] : ['sales']);
 
   const toggleSeries = (dataKey: string) => {
     setActiveSeries(prev => 
@@ -149,33 +157,35 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell }) => {
       {/* KPI Cards Grid Adaptive */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
         {/* Balance Card */}
-        <div className="glass-panel p-6 md:p-10 rounded-[32px] md:rounded-[48px] relative overflow-hidden transition-all shadow-sm border border-white dark:border-slate-800 hover:shadow-xl group bg-white/60 dark:bg-slate-900/60">
-          <div className="relative z-10">
-            <div className="flex justify-between items-start mb-6 md:mb-10">
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-[0.4em] mb-2">Caixa Global</span>
-                <span className={`text-3xl md:text-4xl lg:text-5xl font-black tracking-tight ${currentBalance >= 0 ? 'text-slate-900 dark:text-slate-100' : 'text-red-600 dark:text-red-400'}`}>
-                  {currentBalance.toLocaleString()} Kz
-                </span>
+        {accessLevel === 'full' && (
+          <div className="glass-panel p-6 md:p-10 rounded-[32px] md:rounded-[48px] relative overflow-hidden transition-all shadow-sm border border-white dark:border-slate-800 hover:shadow-xl group bg-white/60 dark:bg-slate-900/60">
+            <div className="relative z-10">
+              <div className="flex justify-between items-start mb-6 md:mb-10">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-[0.4em] mb-2">Caixa Global</span>
+                  <span className={`text-3xl md:text-4xl lg:text-5xl font-black tracking-tight ${currentBalance >= 0 ? 'text-slate-900 dark:text-slate-100' : 'text-red-600 dark:text-red-400'}`}>
+                    {currentBalance.toLocaleString()} Kz
+                  </span>
+                </div>
+                <div className="bg-blue-600 p-4 md:p-5 rounded-2xl md:rounded-3xl text-white shadow-2xl shadow-blue-500/30">
+                  <Wallet size={28} />
+                </div>
               </div>
-              <div className="bg-blue-600 p-4 md:p-5 rounded-2xl md:rounded-3xl text-white shadow-2xl shadow-blue-500/30">
-                <Wallet size={28} />
+              
+              <div className="flex items-center gap-4 bg-emerald-50/70 dark:bg-emerald-950/30 p-4 md:p-6 rounded-2xl md:rounded-3xl border border-emerald-100 dark:border-emerald-900/30">
+                 <TrendingUp size={20} className="text-emerald-500" />
+                 <div className="flex flex-col">
+                   <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Vendas Hoje</span>
+                   <span className="text-lg md:text-xl font-black text-slate-800 dark:text-slate-200">+{todaySalesTotal.toLocaleString()} Kz</span>
+                 </div>
+                 <span className="ml-auto bg-emerald-500 text-white text-[10px] px-3 py-1 rounded-full font-black">{todaySalesCount} un</span>
               </div>
-            </div>
-            
-            <div className="flex items-center gap-4 bg-emerald-50/70 dark:bg-emerald-950/30 p-4 md:p-6 rounded-2xl md:rounded-3xl border border-emerald-100 dark:border-emerald-900/30">
-               <TrendingUp size={20} className="text-emerald-500" />
-               <div className="flex flex-col">
-                 <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Vendas Hoje</span>
-                 <span className="text-lg md:text-xl font-black text-slate-800 dark:text-slate-200">+{todaySalesTotal.toLocaleString()} Kz</span>
-               </div>
-               <span className="ml-auto bg-emerald-500 text-white text-[10px] px-3 py-1 rounded-full font-black">{todaySalesCount} un</span>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Quick Sell / Actions Grid Adaptive */}
-        <div className="md:col-span-1 lg:col-span-2 glass-panel p-6 md:p-10 rounded-[32px] md:rounded-[48px] border-2 border-blue-100/50 dark:border-blue-900/30 bg-gradient-to-br from-white to-blue-50/30 dark:from-slate-900 dark:to-blue-950/20 relative overflow-hidden group shadow-sm hover:shadow-xl transition-all">
+        <div className={`${accessLevel === 'full' ? 'md:col-span-1 lg:col-span-2' : 'md:col-span-2 lg:col-span-3'} glass-panel p-6 md:p-10 rounded-[32px] md:rounded-[48px] border-2 border-blue-100/50 dark:border-blue-900/30 bg-gradient-to-br from-white to-blue-50/30 dark:from-slate-900 dark:to-blue-950/20 relative overflow-hidden group shadow-sm hover:shadow-xl transition-all`}>
           <div className="relative z-10 flex flex-col h-full">
             <div className="flex items-center gap-3 mb-6 md:mb-8">
               <div className="p-3 bg-blue-600 rounded-xl md:rounded-2xl text-white">
@@ -233,19 +243,23 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell }) => {
           <div className="flex flex-col">
             <h3 className="text-slate-900 dark:text-slate-100 font-extrabold text-lg md:text-xl tracking-tight flex items-center gap-3">
               <Calendar size={20} className="text-blue-500" />
-              Evolução Financeira CrystalOne
+              {accessLevel === 'full' ? 'Evolução Financeira CrystalOne' : 'Evolução de Vendas CrystalOne'}
             </h3>
             <div className="flex items-center gap-4 mt-1">
-              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Comparativo de faturamento, lucro e despesas mensais</p>
-              <button 
-                onClick={() => {
-                  window.dispatchEvent(new CustomEvent('switchView', { detail: 'reports' }));
-                  localStorage.setItem('reports_active_tab', 'transactions');
-                }}
-                className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest hover:underline"
-              >
-                Ver Gráfico de Vendas →
-              </button>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">
+                {accessLevel === 'full' ? 'Comparativo de faturamento, lucro e despesas mensais' : 'Acompanhamento diário do volume de vendas'}
+              </p>
+              {accessLevel === 'full' && (
+                <button 
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('switchView', { detail: 'reports' }));
+                    localStorage.setItem('reports_active_tab', 'transactions');
+                  }}
+                  className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest hover:underline"
+                >
+                  Ver Gráfico de Vendas →
+                </button>
+              )}
             </div>
           </div>
 
@@ -254,21 +268,25 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell }) => {
               <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Total Vendas</span>
               <span className="text-xs md:text-sm font-black text-blue-600 dark:text-blue-400">{chartSummary.sales.toLocaleString()} Kz</span>
             </div>
-            <div className="w-px h-8 bg-slate-200 dark:bg-slate-700 hidden md:block"></div>
-            <div className="flex flex-col">
-              <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Total Saídas</span>
-              <span className="text-xs md:text-sm font-black text-rose-500 dark:text-rose-400">{chartSummary.expenses.toLocaleString()} Kz</span>
-            </div>
-            <div className="w-px h-8 bg-slate-200 dark:bg-slate-700 hidden md:block"></div>
-            <div className="flex flex-col">
-              <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Investimentos</span>
-              <span className="text-xs md:text-sm font-black text-amber-600 dark:text-amber-400">{chartSummary.investments.toLocaleString()} Kz</span>
-            </div>
-            <div className="w-px h-8 bg-slate-200 dark:bg-slate-700 hidden md:block"></div>
-            <div className="flex flex-col">
-              <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Lucro Líquido</span>
-              <span className={`text-xs md:text-sm font-black ${chartSummary.profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{chartSummary.profit.toLocaleString()} Kz</span>
-            </div>
+            {accessLevel === 'full' && (
+              <>
+                <div className="w-px h-8 bg-slate-200 dark:bg-slate-700 hidden md:block"></div>
+                <div className="flex flex-col">
+                  <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Total Saídas</span>
+                  <span className="text-xs md:text-sm font-black text-rose-500 dark:text-rose-400">{chartSummary.expenses.toLocaleString()} Kz</span>
+                </div>
+                <div className="w-px h-8 bg-slate-200 dark:bg-slate-700 hidden md:block"></div>
+                <div className="flex flex-col">
+                  <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Investimentos</span>
+                  <span className="text-xs md:text-sm font-black text-amber-600 dark:text-amber-400">{chartSummary.investments.toLocaleString()} Kz</span>
+                </div>
+                <div className="w-px h-8 bg-slate-200 dark:bg-slate-700 hidden md:block"></div>
+                <div className="flex flex-col">
+                  <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Lucro Líquido</span>
+                  <span className={`text-xs md:text-sm font-black ${chartSummary.profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>{chartSummary.profit.toLocaleString()} Kz</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
 

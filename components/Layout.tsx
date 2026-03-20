@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { ViewType, AppNotification, Store } from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { ViewType, AppNotification, Store, AccessLevel } from '../types';
 import { NAV_ITEMS } from '../constants';
 import { Bell, X, Droplets, ChevronDown, Plus, Store as StoreIcon, LogOut, Monitor, Smartphone, Moon, Sun } from 'lucide-react';
 
@@ -8,6 +8,7 @@ interface LayoutProps {
   children: React.ReactNode;
   activeView: ViewType;
   setActiveView: (view: ViewType) => void;
+  accessLevel: AccessLevel;
   stores: Store[];
   activeStoreId: string;
   onSwitchStore: (id: string) => void;
@@ -24,6 +25,7 @@ const Layout: React.FC<LayoutProps> = ({
   children, 
   activeView, 
   setActiveView, 
+  accessLevel,
   stores,
   activeStoreId,
   onSwitchStore,
@@ -43,6 +45,12 @@ const Layout: React.FC<LayoutProps> = ({
 
   const activeStore = stores.find(s => s.id === activeStoreId) || stores[0] || { name: 'Minha Unidade' };
 
+  const filteredNavItems = useMemo(() => {
+    if (accessLevel === 'full') return NAV_ITEMS;
+    // For operational access, only show Dashboard, Sales and Inventory
+    return NAV_ITEMS.filter(item => ['dashboard', 'sales', 'inventory'].includes(item.id));
+  }, [accessLevel]);
+
   useEffect(() => {
     setViewTransition(true);
     const timer = setTimeout(() => setViewTransition(false), 400);
@@ -55,7 +63,7 @@ const Layout: React.FC<LayoutProps> = ({
     localStorage.setItem('crystalone_view_mode', newMode ? 'desktop' : 'mobile');
   };
 
-  const activeIndex = NAV_ITEMS.findIndex(item => item.id === activeView);
+  const activeIndex = filteredNavItems.findIndex(item => item.id === activeView);
 
   return (
     <div className="flex flex-col min-h-screen bg-blue-50/30 dark:bg-slate-950 font-jakarta transition-colors duration-300">
@@ -125,14 +133,14 @@ const Layout: React.FC<LayoutProps> = ({
           <div 
             className="absolute h-10 bg-blue-600 rounded-xl transition-all duration-500 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] shadow-lg shadow-blue-200 dark:shadow-blue-900/40"
             style={{
-              width: `${100 / NAV_ITEMS.length}%`,
+              width: `${100 / filteredNavItems.length}%`,
               transform: `translateX(${activeIndex * 100}%)`,
               left: 0,
               zIndex: 0
             }}
           />
 
-          {NAV_ITEMS.map((item) => {
+          {filteredNavItems.map((item) => {
             const isActive = activeView === item.id;
             return (
               <button

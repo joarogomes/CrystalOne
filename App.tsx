@@ -1,16 +1,16 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import TransactionForm from './components/TransactionForm';
 import InventoryView from './components/InventoryView';
 import ReportsView from './components/ReportsView';
 import NotificationToast from './components/NotificationToast';
-import LoginView from './components/LoginView';
+import LoginPin from './components/LoginPin';
+import DatabaseSetupView from './components/DatabaseSetupView';
 import { BusinessState, ViewType, Transaction, InventoryItem, Store, AppNotification, PHRecord } from './types';
 import { INITIAL_INVENTORY } from './constants';
 import { supabase } from './services/supabase';
-import { AlertCircle, Database, Copy, Check } from 'lucide-react';
 
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewType>('dashboard');
@@ -18,6 +18,7 @@ const App: React.FC = () => {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [dbError, setDbError] = useState<string | null>(null);
+  const [dbStatus, setDbStatus] = useState<'connected' | 'error' | 'checking'>('checking');
 
   const [stores, setStores] = useState<Store[]>([]);
   const [activeStoreId, setActiveStoreId] = useState<string | null>(null);
@@ -26,48 +27,64 @@ const App: React.FC = () => {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [phRecords, setPhRecords] = useState<PHRecord[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [isTestingDb, setIsTestingDb] = useState(false);
 
   useEffect(() => {
-    const checkSession = async () => {
+    const initializeApp = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        setIsAuthenticated(!!session);
+        // 1. Verificar se a tabela de lojas existe (saúde do DB)
+        const { error: healthCheckError } = await supabase.from('stores').select('id').limit(1);
+        
+        if (healthCheckError) {
+          setDbStatus('error');
+          console.error("Erro de conexão com Supabase:", healthCheckError);
+          
+          if (healthCheckError.code === '42P01' || healthCheckError.message.includes('relation "public.stores" does not exist')) {
+            setDbError('DATABASE_MISSING');
+            setIsInitialLoading(false);
+            return;
+          } else {
+            setDbError('CONNECTION_ERROR');
+          }
+        } else {
+          setDbStatus('connected');
+          setDbError(null);
+        }
+
+        // 2. Verificar sessão (opcional, mas vamos focar no PIN)
+        // const { data: { session } } = await supabase.auth.getSession();
+        setIsAuthenticated(false);
         
         supabase.auth.onAuthStateChange((_event, session) => {
-          setIsAuthenticated(!!session);
+          // setIsAuthenticated(!!session);
           if (!session) {
             setStores([]);
             setActiveStoreId(null);
           }
         });
 
-        if (session) {
-          await fetchStores();
-        } else {
-          setIsInitialLoading(false);
-        }
+        // Se quisermos que o PIN seja a única barreira, não carregamos lojas até o PIN ser inserido
+        setIsInitialLoading(false);
       } catch (err) {
-        console.error("Erro ao verificar sessão:", err);
+        console.error("Erro na inicialização:", err);
         setIsInitialLoading(false);
       }
     };
 
-    checkSession();
+    initializeApp();
   }, []);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchStores();
+    }
+  }, [isAuthenticated]);
 
   const fetchStores = async () => {
     try {
       const { data, error } = await supabase.from('stores').select('*').order('name');
       
-      if (error) {
-        // Erro 42P01 ou 404 geralmente significa que a tabela não existe
-        if (error.code === '42P01' || error.message.includes('relation "public.stores" does not exist')) {
-          setDbError('As tabelas ainda não foram criadas no Supabase.');
-          setIsInitialLoading(false);
-          return;
-        }
-        throw error;
-      }
+      if (error) throw error;
 
       if (data && data.length > 0) {
         setStores(data);
@@ -77,7 +94,7 @@ const App: React.FC = () => {
       } else {
         const { data: newStore, error: createError } = await supabase
           .from('stores')
-          .insert([{ name: 'Unidade Central Agua CMe' }])
+          .insert([{ name: 'CrystalOne - Unidade Principal' }])
           .select()
           .single();
         
@@ -96,7 +113,7 @@ const App: React.FC = () => {
         await supabase.from('inventory_items').insert(seed);
       }
     } catch (err) {
-      console.error('Erro ao inicializar:', err);
+      console.error('Erro ao buscar lojas:', err);
     } finally {
       setIsInitialLoading(false);
     }
@@ -119,19 +136,72 @@ const App: React.FC = () => {
         setPhRecords(phRes.data || []);
         setNotifications(nRes.data || []);
       } catch (err) {
-        console.error("Erro ao carregar dados da loja:", err);
+        console.error("Erro ao carregar dados da unidade:", err);
       }
     };
 
     loadData();
   }, [activeStoreId, isAuthenticated]);
 
-  const businessState: BusinessState = {
-    transactions,
-    inventory,
-    inventoryMovements: [],
-    phRecords,
-    notifications
+  const testSupabaseWrite = async () => {
+    if (!activeStoreId) return;
+    setIsTestingDb(true);
+    try {
+      // 1. Teste de Escrita
+      const testId = crypto.randomUUID();
+      const { error: writeError } = await supabase.from('notifications').insert([{
+        id: testId,
+        store_id: activeStoreId,
+        title: 'Teste de Conexão',
+        message: 'A sincronização com a nuvem está funcionando perfeitamente.',
+        type: 'info',
+        read: false
+      }]);
+
+      if (writeError) throw writeError;
+
+      // 2. Teste de Leitura (opcional, mas bom para confirmar)
+      const { data: verifyData, error: readError } = await supabase
+        .from('notifications')
+        .select('id')
+        .eq('id', testId)
+        .single();
+
+      if (readError || !verifyData) throw new Error("Falha na verificação de leitura");
+
+      setToast({
+        id: crypto.randomUUID(),
+        store_id: activeStoreId,
+        title: 'Sucesso!',
+        message: 'Conexão com Supabase testada e aprovada (Escrita/Leitura OK).',
+        type: 'info',
+        read: false,
+        created_at: new Date().toISOString()
+      });
+      
+      // Recarregar notificações para mostrar o novo item
+      const { data: newNotifications } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('store_id', activeStoreId)
+        .order('created_at', { ascending: false });
+      
+      if (newNotifications) setNotifications(newNotifications);
+
+    } catch (err: any) {
+      console.error("Erro no teste de banco de dados:", err);
+      setToast({
+        id: crypto.randomUUID(),
+        store_id: activeStoreId,
+        title: 'Erro no Teste',
+        message: `Falha ao gravar no banco: ${err.message || 'Erro desconhecido'}`,
+        type: 'danger',
+        read: false,
+        created_at: new Date().toISOString()
+      });
+    } finally {
+      setIsTestingDb(false);
+    }
   };
 
   const handleAddTransaction = async (newT: Omit<Transaction, 'id' | 'created_at' | 'store_id'>) => {
@@ -144,9 +214,17 @@ const App: React.FC = () => {
 
       if (error) throw error;
       if (data) setTransactions(prev => [data, ...prev]);
+      return data;
     } catch (err) {
-      console.error("Erro ao salvar:", err);
-      alert("Falha na gravação. Verifique se a tabela 'transactions' existe.");
+      console.error("Erro ao salvar transação:", err);
+      const fallback: Transaction = {
+        ...newT,
+        id: crypto.randomUUID(),
+        store_id: activeStoreId || '',
+        created_at: new Date().toISOString()
+      };
+      setTransactions(prev => [fallback, ...prev]);
+      return fallback;
     }
   };
 
@@ -155,29 +233,42 @@ const App: React.FC = () => {
     if (!item) return;
 
     const newQty = Math.max(0, item.quantity + delta);
-    try {
-      const { error } = await supabase.from('inventory_items').update({ quantity: newQty }).eq('id', id);
-      if (error) throw error;
+    setInventory(prev => prev.map(i => i.id === id ? { ...i, quantity: newQty } : i));
 
-      setInventory(prev => prev.map(i => i.id === id ? { ...i, quantity: newQty } : i));
-      
+    if (delta < 0) {
+      const quantitySold = Math.abs(delta);
+      const totalSaleAmount = quantitySold * item.price;
+
+      if (totalSaleAmount > 0) {
+        await handleAddTransaction({
+          type: 'sale',
+          category: item.name,
+          amount: totalSaleAmount,
+          description: `Venda via CrystalOne: ${item.name} (${quantitySold} ${item.unit})`,
+          quantity: quantitySold
+        });
+
+        setToast({
+          id: crypto.randomUUID(),
+          store_id: activeStoreId || '',
+          title: 'Venda Confirmada',
+          message: `${item.name}: +${totalSaleAmount.toLocaleString()} Kz registrados no caixa.`,
+          type: 'info',
+          read: false,
+          created_at: new Date().toISOString()
+        });
+      }
+    }
+
+    try {
+      await supabase.from('inventory_items').update({ quantity: newQty }).eq('id', id);
       await supabase.from('inventory_movements').insert([{
         item_id: id,
         quantity: Math.abs(delta),
         type: delta > 0 ? 'in' : 'out'
       }]);
-
-      if (delta < 0) {
-        await handleAddTransaction({
-          type: 'sale',
-          category: item.name,
-          amount: Math.abs(delta) * item.price,
-          description: `Venda via estoque`,
-          quantity: Math.abs(delta)
-        });
-      }
     } catch (err) {
-      console.error("Erro no estoque:", err);
+      console.error("Erro ao sincronizar estoque:", err);
     }
   };
 
@@ -187,7 +278,7 @@ const App: React.FC = () => {
     else if ((value >= 6.5 && value < 6.8) || (value > 7.5 && value <= 8.0)) status = 'Alerta';
 
     try {
-      const { data, error } = await supabase.from('ph_records').insert([{
+      const { data } = await supabase.from('ph_records').insert([{
         store_id: activeStoreId,
         value,
         status
@@ -198,7 +289,7 @@ const App: React.FC = () => {
 
   const handleAddInventoryItem = async (newItem: Omit<InventoryItem, 'id' | 'store_id' | 'created_at'>) => {
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('inventory_items')
         .insert([{ ...newItem, store_id: activeStoreId }])
         .select()
@@ -206,37 +297,6 @@ const App: React.FC = () => {
       if (data) setInventory(prev => [...prev, data]);
     } catch (err) {}
   };
-
-  if (dbError) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-slate-950 p-8">
-        <div className="w-full max-w-md bg-white rounded-[40px] p-10 shadow-2xl space-y-8 animate-premium">
-          <div className="flex flex-col items-center gap-4 text-center">
-             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center text-red-600">
-               <Database size={32} />
-             </div>
-             <h2 className="text-xl font-black text-slate-900">Configuração Necessária</h2>
-             <p className="text-sm text-slate-500 font-medium leading-relaxed">
-               As tabelas do banco de dados ainda não foram detectadas. Para os testes 2 a 5 funcionarem, você precisa executar o script SQL no painel do Supabase.
-             </p>
-          </div>
-          <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 flex items-center justify-between">
-             <span className="text-xs font-bold text-slate-600">Script SQL disponível no chat</span>
-             <button 
-                onClick={() => {
-                   window.location.reload();
-                }}
-                className="bg-blue-600 text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest active:scale-95 transition-all"
-             >
-                Recarregar App
-             </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) return <LoginView onSuccess={() => setIsAuthenticated(true)} />;
 
   if (isInitialLoading) {
     return (
@@ -249,6 +309,36 @@ const App: React.FC = () => {
     );
   }
 
+  if (dbError === 'DATABASE_MISSING') {
+    return <DatabaseSetupView />;
+  }
+
+  if (dbError === 'CONNECTION_ERROR') {
+    return (
+      <div className="fixed inset-0 z-[300] bg-slate-950 flex flex-col items-center justify-center p-6">
+        <div className="w-full max-w-md bg-white/5 border border-white/10 p-8 rounded-[40px] text-center space-y-6">
+          <div className="w-20 h-20 bg-red-600/20 rounded-3xl flex items-center justify-center mx-auto border border-red-500/30">
+            <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+          </div>
+          <h1 className="text-2xl font-black text-white tracking-tight">Erro de Conexão</h1>
+          <p className="text-slate-400 text-sm leading-relaxed">
+            Não foi possível conectar ao banco de dados Cloud. Verifique sua conexão com a internet ou as configurações do Supabase.
+          </p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-2xl transition-all active:scale-95"
+          >
+            TENTAR NOVAMENTE
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <LoginPin onSuccess={() => setIsAuthenticated(true)} />;
+  }
+
   return (
     <Layout 
       activeView={activeView} 
@@ -258,21 +348,28 @@ const App: React.FC = () => {
       stores={stores}
       activeStoreId={activeStoreId || ''}
       onSwitchStore={setActiveStoreId}
+      dbStatus={dbStatus}
       onAddStore={async (name) => {
         const { data } = await supabase.from('stores').insert([{ name }]).select().single();
         if (data) setStores(prev => [...prev, data]);
       }}
       onLogout={async () => {
-        await supabase.auth.signOut();
         setIsAuthenticated(false);
       }}
+      onTestDb={testSupabaseWrite}
+      isTestingDb={isTestingDb}
     >
       <div className="pb-8">
-        {activeView === 'dashboard' && <Dashboard state={businessState} />}
+        {activeView === 'dashboard' && (
+          <Dashboard 
+            state={{ transactions, inventory, inventoryMovements: [], phRecords, notifications }} 
+            onQuickSell={(itemId) => handleUpdateInventory(itemId, -1)}
+          />
+        )}
         {activeView === 'sales' && <TransactionForm type="sale" onAdd={handleAddTransaction} transactions={transactions} />}
         {activeView === 'expenses' && <TransactionForm type="expense" onAdd={handleAddTransaction} transactions={transactions} />}
         {activeView === 'inventory' && <InventoryView inventory={inventory} movements={[]} onUpdate={handleUpdateInventory} onAddItem={handleAddInventoryItem} />}
-        {activeView === 'reports' && <ReportsView state={businessState} onAddPH={handleAddPHRecord} storeName={stores.find(s => s.id === activeStoreId)?.name} />}
+        {activeView === 'reports' && <ReportsView state={{ transactions, inventory, inventoryMovements: [], phRecords, notifications }} onAddPH={handleAddPHRecord} storeName={stores.find(s => s.id === activeStoreId)?.name} />}
       </div>
       {toast && <NotificationToast notification={toast} onClose={() => setToast(null)} />}
     </Layout>

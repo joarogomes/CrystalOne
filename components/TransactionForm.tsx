@@ -2,8 +2,9 @@
 import React, { useState, useMemo } from 'react';
 import { Transaction, TransactionType } from '../types';
 import { Plus, X, Calendar, TrendingDown, Landmark, Info, ChevronLeft, ChevronRight, Edit3, List, ShoppingCart, PieChart as PieIcon } from 'lucide-react';
-import { SALE_CATEGORIES, EXPENSE_CATEGORIES, INVESTMENT_CATEGORIES } from '../constants';
+import { SALE_CATEGORIES, EXPENSE_CATEGORIES, INVESTMENT_CATEGORIES, QUICK_SALE_ITEMS } from '../constants';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { Zap } from 'lucide-react';
 
 interface TransactionFormProps {
   type: TransactionType;
@@ -18,16 +19,26 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
   const [isOpen, setIsOpen] = useState(false);
   const [amount, setAmount] = useState('');
   const [subType, setSubType] = useState<'expense' | 'investment'>(type === 'sale' ? 'expense' : type as any);
-  const [category, setCategory] = useState(type === 'sale' ? 'Total Diário' : '');
+  const [category, setCategory] = useState(type === 'sale' ? 'Água 20L' : '');
   const [customCategory, setCustomCategory] = useState('');
   const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [description, setDescription] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
   const activeType = type === 'sale' ? 'sale' : subType;
-  const categories = activeType === 'sale' ? ['Total Diário', ...SALE_CATEGORIES] : 
+  const categories = activeType === 'sale' ? SALE_CATEGORIES : 
                     activeType === 'expense' ? EXPENSE_CATEGORIES : 
                     INVESTMENT_CATEGORIES;
+
+  const handleQuickSale = (name: string, price: number) => {
+    onAdd({
+      type: 'sale',
+      category: name,
+      amount: price,
+      description: `Venda Rápida: ${name}`,
+      quantity: 1
+    });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +56,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
     });
 
     setAmount('');
-    setCategory(activeType === 'sale' ? 'Total Diário' : '');
+    setCategory(activeType === 'sale' ? 'Água 20L' : '');
     setCustomCategory('');
     setIsCustomCategory(false);
     setDescription('');
@@ -162,6 +173,24 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
           </div>
         )}
 
+        {type === 'sale' && (
+          <div className="grid grid-cols-2 gap-3">
+            {QUICK_SALE_ITEMS.map(item => (
+              <button
+                key={item.name}
+                onClick={() => handleQuickSale(item.name, item.price)}
+                className="bg-white/80 backdrop-blur-sm p-4 rounded-[24px] border border-white shadow-sm hover:shadow-md active:scale-95 transition-all flex flex-col items-center gap-1 group"
+              >
+                <div className="bg-blue-50 p-2 rounded-xl text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                  <Zap size={16} fill="currentColor" />
+                </div>
+                <span className="text-[10px] font-black text-slate-900 uppercase tracking-tight">{item.name}</span>
+                <span className="text-xs font-black text-blue-600">{item.price.toLocaleString()} Kz</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         {type !== 'sale' && (
           <div className="flex bg-slate-200/40 backdrop-blur-sm p-1.5 rounded-[28px] border border-white/50">
             <button onClick={() => setSubType('expense')} className={`flex-1 py-4 px-4 rounded-[22px] text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 ${subType === 'expense' ? 'bg-white text-blue-600 shadow-xl' : 'text-slate-500'}`}><TrendingDown size={14} /> Saídas</button>
@@ -235,50 +264,50 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
       )}
 
       {/* Transaction List */}
-      <div className="space-y-4">
+      <div className="space-y-3 md:space-y-4">
         {activeType === 'sale' ? (
           groupedSales && groupedSales.length > 0 ? (
             groupedSales.map(([dateStr, data]) => (
-              <div key={dateStr} className="glass-card p-6 rounded-[32px] flex items-center justify-between group active:scale-98 transition-all">
-                <div className="flex items-center gap-5">
-                  <div className="bg-blue-600 p-4 rounded-2xl text-white shadow-lg shadow-blue-600/20">
-                    <ShoppingCart size={22} />
+              <div key={dateStr} className="glass-card p-4 md:p-6 rounded-[24px] md:rounded-[32px] flex items-center justify-between group active:scale-98 transition-all">
+                <div className="flex items-center gap-3 md:gap-5">
+                  <div className="bg-blue-600 p-3 md:p-4 rounded-xl md:rounded-2xl text-white shadow-lg shadow-blue-600/20">
+                    <ShoppingCart size={20} md:size={22} />
                   </div>
                   <div className="flex flex-col">
-                    <span className="font-black text-slate-900 text-base leading-none mb-1.5">{dateStr}</span>
-                    <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest">{data.count} LANÇAMENTOS</span>
+                    <span className="font-black text-slate-900 text-sm md:text-base leading-none mb-1">{dateStr}</span>
+                    <span className="text-[9px] text-slate-400 uppercase font-black tracking-widest">{data.count} LANÇAMENTOS</span>
                   </div>
                 </div>
                 <div className="flex flex-col items-end">
-                  <span className="font-black text-blue-600 text-xl tracking-tight">+ {data.total.toLocaleString()} Kz</span>
+                  <span className="font-black text-blue-600 text-lg md:text-xl tracking-tight">+ {data.total.toLocaleString()} Kz</span>
                 </div>
               </div>
             ))
           ) : (
-            <div className="bg-white/30 backdrop-blur-sm p-16 rounded-[40px] border-4 border-dashed border-white/40 text-center flex flex-col items-center gap-4">
-              <div className="p-6 bg-white/50 rounded-full">
-                <Calendar size={48} className="text-slate-300" />
+            <div className="bg-white/30 backdrop-blur-sm p-10 md:p-16 rounded-[32px] md:rounded-[40px] border-4 border-dashed border-white/40 text-center flex flex-col items-center gap-4">
+              <div className="p-4 md:p-6 bg-white/50 rounded-full">
+                <Calendar size={32} md:size={48} className="text-slate-300" />
               </div>
-              <p className="text-slate-400 text-xs font-black uppercase tracking-[0.1em] max-w-[150px] leading-relaxed">
+              <p className="text-slate-400 text-[10px] md:text-xs font-black uppercase tracking-[0.1em] max-w-[150px] leading-relaxed">
                 Sem vendas registradas hoje.
               </p>
             </div>
           )
         ) : (
           filteredTransactions.map(t => (
-            <div key={t.id} className="glass-card p-6 rounded-[32px] flex items-center justify-between active:scale-98 transition-all">
-              <div className="flex items-center gap-5">
-                <div className={`p-4 rounded-2xl ${activeType === 'investment' ? 'bg-amber-100 text-amber-600 shadow-amber-500/10' : 'bg-rose-100 text-rose-600 shadow-rose-500/10'}`}>
-                  {activeType === 'investment' ? <Landmark size={22} /> : <TrendingDown size={22} />}
+            <div key={t.id} className="glass-card p-4 md:p-6 rounded-[24px] md:rounded-[32px] flex items-center justify-between active:scale-98 transition-all">
+              <div className="flex items-center gap-3 md:gap-5">
+                <div className={`p-3 md:p-4 rounded-xl md:rounded-2xl ${activeType === 'investment' ? 'bg-amber-100 text-amber-600 shadow-amber-500/10' : 'bg-rose-100 text-rose-600 shadow-rose-500/10'}`}>
+                  {activeType === 'investment' ? <Landmark size={20} md:size={22} /> : <TrendingDown size={20} md:size={22} />}
                 </div>
                 <div className="flex flex-col">
-                  <span className="font-black text-slate-900 text-base leading-none mb-1.5">{t.category}</span>
+                  <span className="font-black text-slate-900 text-sm md:text-base leading-none mb-1">{t.category}</span>
                   {/* Fix: changed t.date to t.created_at */}
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{new Date(t.created_at).toLocaleDateString('pt-BR')}</span>
+                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">{new Date(t.created_at).toLocaleDateString('pt-BR')}</span>
                 </div>
               </div>
               <div className="flex flex-col items-end">
-                <span className={`font-black text-lg tracking-tight ${activeType === 'investment' ? 'text-amber-600' : 'text-rose-500'}`}>
+                <span className={`font-black text-base md:text-lg tracking-tight ${activeType === 'investment' ? 'text-amber-600' : 'text-rose-500'}`}>
                   - {t.amount.toLocaleString()} Kz
                 </span>
               </div>
@@ -289,15 +318,15 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
 
       {/* Modal Form */}
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xl" onClick={() => setIsOpen(false)} />
-          <div className="relative bg-white w-full max-w-sm rounded-[48px] p-10 shadow-2xl animate-premium border border-white/40">
-            <div className="flex justify-between items-center mb-10">
+          <div className="relative bg-white w-full max-w-sm rounded-[32px] md:rounded-[48px] p-6 md:p-10 shadow-2xl animate-premium border border-white/40">
+            <div className="flex justify-between items-center mb-6 md:mb-10">
               <div className="flex flex-col">
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight">Novo Registro</h3>
+                <h3 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">Novo Registro</h3>
                 <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">{activeType === 'sale' ? 'Faturamento' : 'Despesa'}</span>
               </div>
-              <button onClick={() => setIsOpen(false)} className="text-slate-300 p-2 hover:bg-slate-50 rounded-full"><X size={32} /></button>
+              <button onClick={() => setIsOpen(false)} className="text-slate-300 p-2 hover:bg-slate-50 rounded-full"><X size={24} md:size={32} /></button>
             </div>
             
             <form onSubmit={handleSubmit} className="space-y-8">

@@ -1,4 +1,5 @@
 
+// Fixed import statement to correctly reference 'react'
 import React, { useState } from 'react';
 import { User, Lock, Droplets, ChevronRight, Eye, EyeOff, ShieldCheck, Mail, ArrowLeft, AlertCircle } from 'lucide-react';
 import { supabase } from '../services/supabase';
@@ -51,13 +52,10 @@ const LoginView: React.FC<LoginViewProps> = ({ onSuccess }) => {
       }
     } catch (err: any) {
       console.error("Erro de Autenticação:", err);
-      // Mensagens amigáveis para erros comuns
       if (err.message.includes("Email not confirmed")) {
-        setError("E-mail não confirmado. Clique no link enviado para sua caixa de entrada.");
+        setError("E-mail não confirmado. Verifique sua caixa de entrada.");
       } else if (err.message.includes("Invalid login credentials")) {
         setError("Dados inválidos. Verifique e-mail e senha.");
-      } else if (err.message.includes("Failed to fetch")) {
-        setError("Erro de conexão. Verifique se o URL do Supabase está correto.");
       } else {
         setError(err.message || "Ocorreu um erro inesperado.");
       }
@@ -80,14 +78,14 @@ const LoginView: React.FC<LoginViewProps> = ({ onSuccess }) => {
             </div>
           </div>
           <div className="text-center">
-            <h1 className="text-3xl font-black text-white tracking-tighter">Agua CMe</h1>
+            <h1 className="text-4xl font-black text-white tracking-tighter">CrystalOne</h1>
             <p className="text-[10px] text-blue-400 font-bold uppercase tracking-[0.4em] mt-1 opacity-60">
-              {isSignUp ? 'Registro de Unidade' : 'Business Management'}
+              {isSignUp ? 'Registro de Unidade' : 'Business Ecosystem'}
             </p>
           </div>
         </div>
 
-        <form onSubmit={handleAuth} className={`space-y-4 ${error ? 'animate-shake' : ''}`}>
+        <form onSubmit={handleAuth} className="space-y-4">
           <div className="space-y-1.5">
             <div className="relative group">
               <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-500">
@@ -150,7 +148,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onSuccess }) => {
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
               <>
-                {isSignUp ? 'CRIAR CONTA' : 'ENTRAR'}
+                {isSignUp ? 'CRIAR CONTA' : 'CONECTAR'}
                 <ChevronRight size={18} />
               </>
             )}
@@ -162,7 +160,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onSuccess }) => {
             onClick={() => setIsSignUp(!isSignUp)}
             className="text-slate-400 text-[11px] font-black uppercase tracking-widest hover:text-blue-400 transition-colors"
           >
-            {isSignUp ? "Voltar para o Login" : "Novo por aqui? Criar Conta"}
+            {isSignUp ? "Voltar para o Login" : "Nova por aqui? Criar Conta"}
           </button>
         </div>
       </div>

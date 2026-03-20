@@ -381,7 +381,23 @@ const App: React.FC = () => {
         {activeView === 'sales' && <TransactionForm type="sale" onAdd={handleAddTransaction} transactions={transactions} />}
         {activeView === 'expenses' && <TransactionForm type="expense" onAdd={handleAddTransaction} transactions={transactions} />}
         {activeView === 'inventory' && <InventoryView inventory={inventory} movements={inventoryMovements} onUpdate={handleUpdateInventory} onAddItem={handleAddInventoryItem} />}
-        {activeView === 'reports' && <ReportsView state={{ transactions, inventory, inventoryMovements, phRecords }} onAddPH={handleAddPHRecord} storeName={stores.find(s => s.id === activeStoreId)?.name} />}
+        {activeView === 'reports' && (
+          <ReportsView 
+            state={{ transactions, inventory, inventoryMovements, phRecords }} 
+            onAddPH={handleAddPHRecord} 
+            storeName={stores.find(s => s.id === activeStoreId)?.name} 
+            accessLevel={accessLevel}
+          />
+        )}
+        {activeView === 'quality' && (
+          <ReportsView 
+            state={{ transactions, inventory, inventoryMovements, phRecords }} 
+            onAddPH={handleAddPHRecord} 
+            storeName={stores.find(s => s.id === activeStoreId)?.name} 
+            accessLevel={accessLevel}
+            initialTab="quality"
+          />
+        )}
       </div>
       {toast && <NotificationToast notification={toast} onClose={() => setToast(null)} />}
     </Layout>

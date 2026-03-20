@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { LayoutDashboard, ShoppingCart, CreditCard, Box, FileBarChart } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, CreditCard, Box, FileBarChart, Droplets } from 'lucide-react';
 import { TransactionType, ViewType } from './types';
 
 export const SALE_CATEGORIES = ['Água 20L', 'Água 5L', 'Garrafa 1.5L', 'Copo 200ml', 'Entrega'];
@@ -17,6 +17,7 @@ export const NAV_ITEMS = [
   { id: 'sales' as ViewType, label: 'Vendas', icon: <ShoppingCart size={20} /> },
   { id: 'expenses' as ViewType, label: 'Financeiro', icon: <CreditCard size={20} /> },
   { id: 'inventory' as ViewType, label: 'Estoque', icon: <Box size={20} /> },
+  { id: 'quality' as ViewType, label: 'Qualidade', icon: <Droplets size={20} /> },
   { id: 'reports' as ViewType, label: 'Relatórios', icon: <FileBarChart size={20} /> },
 ];
 

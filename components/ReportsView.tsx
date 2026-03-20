@@ -26,13 +26,17 @@ import {
   AlertCircle,
   ChevronDown,
   Landmark,
-  CalendarDays
+  CalendarDays,
+  MessageCircle
 } from 'lucide-react';
+import { AccessLevel } from '../types';
 
 interface ReportsViewProps {
   state: BusinessState;
   onAddPH: (value: number) => void;
   storeName?: string;
+  accessLevel?: AccessLevel;
+  initialTab?: ReportTab;
 }
 
 type ReportTab = 'transactions' | 'quality' | 'ai';
@@ -119,8 +123,12 @@ const getLocalDateString = (date: Date = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
-const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "CrystalOne" }) => {
-  const [activeTab, setActiveTab] = useState<ReportTab>('transactions');
+const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "CrystalOne", accessLevel = 'full', initialTab }) => {
+  const [activeTab, setActiveTab] = useState<ReportTab>(() => {
+    if (initialTab) return initialTab;
+    if (accessLevel === 'operational') return 'quality';
+    return (localStorage.getItem('reports_active_tab') as any) || 'transactions';
+  });
   const [filterType, setFilterType] = useState<'all' | 'sale' | 'expense' | 'investment'>('all');
   const [phValue, setPhValue] = useState('');
   const [showPHForm, setShowPHForm] = useState(false);
@@ -234,11 +242,65 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
     }
   };
 
-  const tabs = [
-    { id: 'transactions' as ReportTab, label: 'Financeiro', icon: <History size={16} /> },
-    { id: 'quality' as ReportTab, label: 'Qualidade', icon: <Droplet size={16} /> },
-    { id: 'ai' as ReportTab, label: 'IA Insights', icon: <Sparkles size={16} /> },
-  ];
+  const handleWhatsAppReport = (period: 'diario' | 'semanal' | 'mensal') => {
+    const now = new Date();
+    const todayStr = getLocalDateString(now);
+    
+    let filteredTransactions = state.transactions;
+    let title = "";
+
+    if (period === 'diario') {
+      filteredTransactions = state.transactions.filter(t => getLocalDateString(new Date(t.created_at)) === todayStr);
+      title = `Relatório Diário - ${todayStr}`;
+    } else if (period === 'semanal') {
+      const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      filteredTransactions = state.transactions.filter(t => new Date(t.created_at) >= lastWeek);
+      title = `Relatório Semanal - Últimos 7 dias`;
+    } else {
+      const lastMonth = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      filteredTransactions = state.transactions.filter(t => new Date(t.created_at) >= lastMonth);
+      title = `Relatório Mensal - Últimos 30 dias`;
+    }
+
+    const sales = filteredTransactions.filter(t => t.type === 'sale');
+    const expenses = filteredTransactions.filter(t => t.type === 'expense');
+    const investments = filteredTransactions.filter(t => t.type === 'investment');
+
+    const totalSales = sales.reduce((sum, t) => sum + t.amount, 0);
+    const totalExpenses = expenses.reduce((sum, t) => sum + t.amount, 0);
+    const totalInvestments = investments.reduce((sum, t) => sum + t.amount, 0);
+    const balance = totalSales - totalExpenses - totalInvestments;
+
+    const lastPH = state.phRecords.length > 0 ? state.phRecords[state.phRecords.length - 1] : null;
+
+    const message = `*${storeName} - ${title}*%0A%0A` +
+      `💰 *Financeiro:*%0A` +
+      `• Vendas: ${totalSales.toLocaleString()} Kz%0A` +
+      `• Despesas: ${totalExpenses.toLocaleString()} Kz%0A` +
+      `• Investimentos: ${totalInvestments.toLocaleString()} Kz%0A` +
+      `• *Saldo Líquido: ${balance.toLocaleString()} Kz*%0A%0A` +
+      `💧 *Qualidade (Último pH):*%0A` +
+      (lastPH ? `• Valor: ${lastPH.value.toFixed(2)} (${lastPH.status})%0A` : `• Sem registros recentes%0A`) +
+      `• Data: ${lastPH ? new Date(lastPH.created_at).toLocaleString() : 'N/A'}%0A%0A` +
+      `📊 *Resumo Operacional:*%0A` +
+      `• Total de Transações: ${filteredTransactions.length}%0A` +
+      `• Vendas Realizadas: ${sales.length}%0A%0A` +
+      `_Gerado via CrystalOne Cloud_`;
+
+    window.open(`https://wa.me/244939667223?text=${message}`, '_blank');
+  };
+
+  const tabs = useMemo(() => {
+    const allTabs = [
+      { id: 'transactions' as ReportTab, label: 'Financeiro', icon: <History size={16} /> },
+      { id: 'quality' as ReportTab, label: 'Qualidade', icon: <Droplet size={16} /> },
+      { id: 'ai' as ReportTab, label: 'IA Insights', icon: <Sparkles size={16} /> },
+    ];
+    if (accessLevel === 'operational') {
+      return allTabs.filter(t => t.id === 'quality');
+    }
+    return allTabs;
+  }, [accessLevel]);
 
   const activeTabIndex = tabs.findIndex(t => t.id === activeTab);
 
@@ -251,16 +313,40 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
           <p className="text-slate-500 dark:text-slate-400 text-sm">Visão analítica do fluxo de caixa e padrões de qualidade.</p>
         </div>
         
-        <button 
-          onClick={handleExportPDF}
-          disabled={isExporting}
-          className={`flex items-center gap-3 px-8 py-4 rounded-[24px] font-black text-xs uppercase tracking-widest transition-all shadow-xl shadow-blue-500/10 ${
-            isExporting ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-wait' : 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 border border-blue-50 dark:border-slate-800 hover:bg-blue-600 dark:hover:bg-blue-500 hover:text-white group active:scale-95'
-          }`}
-        >
-          {isExporting ? <div className="w-4 h-4 border-2 border-blue-600 dark:border-blue-400 border-t-transparent rounded-full animate-spin" /> : <FileDown size={20} />}
-          {isExporting ? 'Processando...' : 'Exportar PDF'}
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex bg-white dark:bg-slate-900 p-1 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
+            <button 
+              onClick={() => handleWhatsAppReport('diario')}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase text-emerald-600 hover:bg-emerald-50 transition-all"
+            >
+              <MessageCircle size={14} />
+              Diário
+            </button>
+            <button 
+              onClick={() => handleWhatsAppReport('semanal')}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase text-emerald-600 hover:bg-emerald-50 transition-all"
+            >
+              Semanal
+            </button>
+            <button 
+              onClick={() => handleWhatsAppReport('mensal')}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase text-emerald-600 hover:bg-emerald-50 transition-all"
+            >
+              Mensal
+            </button>
+          </div>
+
+          <button 
+            onClick={handleExportPDF}
+            disabled={isExporting}
+            className={`flex items-center gap-3 px-8 py-4 rounded-[24px] font-black text-xs uppercase tracking-widest transition-all shadow-xl shadow-blue-500/10 ${
+              isExporting ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-wait' : 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 border border-blue-50 dark:border-slate-800 hover:bg-blue-600 dark:hover:bg-blue-500 hover:text-white group active:scale-95'
+            }`}
+          >
+            {isExporting ? <div className="w-4 h-4 border-2 border-blue-600 dark:border-blue-400 border-t-transparent rounded-full animate-spin" /> : <FileDown size={20} />}
+            {isExporting ? 'Processando...' : 'Exportar PDF'}
+          </button>
+        </div>
       </div>
 
       {/* Tab Navigation with Sliding Indicator */}

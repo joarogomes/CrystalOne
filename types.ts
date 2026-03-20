@@ -63,6 +63,6 @@ export interface Store {
   created_at: string;
 }
 
-export type ViewType = 'dashboard' | 'sales' | 'expenses' | 'inventory' | 'reports';
+export type ViewType = 'dashboard' | 'sales' | 'expenses' | 'inventory' | 'reports' | 'quality';
 
 export type AccessLevel = 'full' | 'operational';

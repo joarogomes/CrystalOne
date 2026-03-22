@@ -3,11 +3,13 @@ import React from 'react';
 import { LayoutDashboard, ShoppingCart, CreditCard, Box, FileBarChart, Droplets } from 'lucide-react';
 import { TransactionType, ViewType } from './types';
 
-export const SALE_CATEGORIES = ['Água 20L', 'Água 5L', 'Tampa', 'Entrega'];
+export const SALE_CATEGORIES = ['Água 20L', 'Água 6L', 'Água 5L', 'Água 1.5L', 'Tampa', 'Entrega'];
 
 export const QUICK_SALE_ITEMS = [
   { name: 'Água 20L', price: 500 },
+  { name: 'Água 6L', price: 200 },
   { name: 'Água 5L', price: 150 },
+  { name: 'Água 1.5L', price: 50 },
   { name: 'Tampa', price: 130 },
 ];
 export const EXPENSE_CATEGORIES = ['Aluguel', 'Energia', 'Salários', 'Manutenção', 'Combustível', 'Impostos', 'Marketing', 'Saída de Caixa'];

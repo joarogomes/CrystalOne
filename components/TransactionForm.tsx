@@ -220,7 +220,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
   const salesChartData = useMemo(() => {
     if (type !== 'sale') return [];
     const sales = transactions.filter(t => t.type === 'sale');
-    const groups: Record<string, number> = {};
+    const groups: Record<string, { amount: number, quantity: number }> = {};
 
     sales.forEach(t => {
       const date = new Date(t.created_at);
@@ -235,11 +235,21 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
         key = date.toLocaleDateString('pt-PT', { month: 'short', year: '2-digit' });
       }
 
-      groups[key] = (groups[key] || 0) + t.amount;
+      if (!groups[key]) groups[key] = { amount: 0, quantity: 0 };
+      groups[key].amount += t.amount;
+      groups[key].quantity += (t.quantity || 1);
     });
 
     return Object.entries(groups)
-      .map(([name, value]) => ({ name, value }))
+      .map(([name, data]) => {
+        const avgPrice = data.quantity > 0 ? data.amount / data.quantity : 0;
+        let color = '#2563eb'; // Default blue
+        if (avgPrice <= 17) color = '#ef4444'; // Red
+        else if (avgPrice <= 25) color = '#f59e0b'; // Yellow
+        else color = '#10b981'; // Green
+
+        return { name, value: data.amount, color, avgPrice };
+      })
       .slice(-12); // Last 12 periods
   }, [transactions, salesTimeFilter, type]);
 
@@ -378,10 +388,12 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
                     cursor={{ fill: '#f8fafc', opacity: 0.4 }}
                     content={({ active, payload }) => {
                       if (active && payload && payload.length) {
+                        const data = payload[0].payload;
                         return (
                           <div className="bg-slate-900 p-4 rounded-2xl shadow-2xl border border-white/10 animate-premium">
-                            <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">{payload[0].payload.name}</p>
-                            <p className="text-lg font-black text-white">{payload[0].value?.toLocaleString()} Kz</p>
+                            <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">{data.name}</p>
+                            <p className="text-lg font-black text-white">{data.value?.toLocaleString()} Kz</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Preço Médio: {data.avgPrice.toFixed(2)} Kz</p>
                           </div>
                         );
                       }
@@ -390,10 +402,13 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
                   />
                   <Bar 
                     dataKey="value" 
-                    fill="#2563eb" 
                     radius={[8, 8, 0, 0]} 
                     barSize={salesTimeFilter === 'day' ? 20 : 40}
-                  />
+                  >
+                    {salesChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>

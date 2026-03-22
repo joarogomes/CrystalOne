@@ -27,6 +27,15 @@ const CustomTooltip = ({ active, payload, label }: any) => {
             </div>
             <span className="text-sm font-black text-blue-600">+{sales.toLocaleString()} Kz</span>
           </div>
+          {data.avgPrice > 0 && (
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-slate-400"></div>
+                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Preço Médio</span>
+              </div>
+              <span className="text-sm font-black text-slate-600 dark:text-slate-300">{data.avgPrice.toFixed(2)} Kz</span>
+            </div>
+          )}
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-rose-500"></div>
@@ -115,28 +124,41 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, accessLevel =
     const now = new Date();
     const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     const data = [];
-    const statsMap: Record<number, { sales: number, expenses: number, investments: number }> = {};
+    const statsMap: Record<number, { sales: number, expenses: number, investments: number, quantity: number }> = {};
     
     state.transactions.forEach(t => {
       const transactionDate = new Date(t.created_at);
       if (transactionDate.getMonth() === now.getMonth() && transactionDate.getFullYear() === now.getFullYear()) {
         const day = transactionDate.getDate();
-        if (!statsMap[day]) statsMap[day] = { sales: 0, expenses: 0, investments: 0 };
+        if (!statsMap[day]) statsMap[day] = { sales: 0, expenses: 0, investments: 0, quantity: 0 };
         
-        if (t.type === 'sale') statsMap[day].sales += t.amount;
+        if (t.type === 'sale') {
+          statsMap[day].sales += t.amount;
+          statsMap[day].quantity += (t.quantity || 0);
+        }
         else if (t.type === 'expense') statsMap[day].expenses += t.amount;
         else if (t.type === 'investment') statsMap[day].investments += t.amount;
       }
     });
 
+    const getPriceColor = (price: number) => {
+      if (price <= 0) return '#2563eb'; // Default blue if no sales
+      if (price <= 17) return '#ef4444'; // Red
+      if (price <= 25) return '#f59e0b'; // Yellow
+      return '#10b981'; // Green
+    };
+
     for (let i = 1; i <= daysInMonth; i++) {
-      const stats = statsMap[i] || { sales: 0, expenses: 0, investments: 0 };
+      const stats = statsMap[i] || { sales: 0, expenses: 0, investments: 0, quantity: 0 };
+      const avgPrice = stats.quantity > 0 ? stats.sales / stats.quantity : 0;
       data.push({ 
         day: i, 
         sales: stats.sales, 
         expenses: stats.expenses,
         investments: stats.investments,
-        profit: stats.sales - stats.expenses - stats.investments
+        profit: stats.sales - stats.expenses - stats.investments,
+        avgPrice,
+        color: getPriceColor(avgPrice)
       });
     }
     return data;
@@ -292,25 +314,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, accessLevel =
 
         <div className="h-[400px] md:h-[500px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={dailyTrendsData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
-                </linearGradient>
-                <linearGradient id="colorExpenses" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
-                </linearGradient>
-                <linearGradient id="colorInvestments" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
-                </linearGradient>
-                <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
+            <ComposedChart data={dailyTrendsData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
               <XAxis 
                 dataKey="day" 
@@ -325,7 +329,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, accessLevel =
                 tickLine={false}
                 tickFormatter={(value) => value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value}
               />
-              <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#cbd5e1', strokeWidth: 1 }} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: '#f8fafc', opacity: 0.1 }} />
               <ReferenceLine y={0} stroke="#cbd5e1" strokeWidth={1} />
               <Legend 
                 verticalAlign="top" 
@@ -349,61 +353,58 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, accessLevel =
                 )}
               />
               
-              <Area 
-                type="monotone"
-                dataKey="sales" 
-                stackId="1"
-                stroke="#2563eb" 
-                fillOpacity={1}
-                fill="url(#colorSales)"
-                dot={{ r: 2, fill: '#2563eb', strokeWidth: 1, stroke: '#fff' }}
-                activeDot={{ r: 4, strokeWidth: 0 }}
-                hide={!activeSeries.includes('sales')}
-                animationDuration={1500}
-              />
+              {activeSeries.includes('sales') && (
+                <Bar dataKey="sales" radius={[4, 4, 0, 0]}>
+                  {dailyTrendsData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Bar>
+              )}
               
               {accessLevel === 'full' && (
                 <>
-                  <Area 
-                    type="monotone"
-                    dataKey="expenses" 
-                    stackId="1"
-                    stroke="#f43f5e" 
-                    fillOpacity={1}
-                    fill="url(#colorExpenses)"
-                    dot={{ r: 2, fill: '#f43f5e', strokeWidth: 1, stroke: '#fff' }}
-                    activeDot={{ r: 4, strokeWidth: 0 }}
-                    hide={!activeSeries.includes('expenses')}
-                    animationDuration={1500}
-                  />
+                  {activeSeries.includes('expenses') && (
+                    <Area 
+                      type="monotone"
+                      dataKey="expenses" 
+                      stackId="1"
+                      stroke="#f43f5e" 
+                      fillOpacity={0.1}
+                      fill="#f43f5e"
+                      dot={{ r: 2, fill: '#f43f5e', strokeWidth: 1, stroke: '#fff' }}
+                      activeDot={{ r: 4, strokeWidth: 0 }}
+                      animationDuration={1500}
+                    />
+                  )}
 
-                  <Area 
-                    type="monotone"
-                    dataKey="investments" 
-                    stackId="1"
-                    stroke="#f59e0b" 
-                    fillOpacity={1}
-                    fill="url(#colorInvestments)"
-                    dot={{ r: 2, fill: '#f59e0b', strokeWidth: 1, stroke: '#fff' }}
-                    activeDot={{ r: 4, strokeWidth: 0 }}
-                    hide={!activeSeries.includes('investments')}
-                    animationDuration={1500}
-                  />
+                  {activeSeries.includes('investments') && (
+                    <Area 
+                      type="monotone"
+                      dataKey="investments" 
+                      stackId="1"
+                      stroke="#f59e0b" 
+                      fillOpacity={0.1}
+                      fill="#f59e0b"
+                      dot={{ r: 2, fill: '#f59e0b', strokeWidth: 1, stroke: '#fff' }}
+                      activeDot={{ r: 4, strokeWidth: 0 }}
+                      animationDuration={1500}
+                    />
+                  )}
                   
-                  <Area 
-                    type="monotone"
-                    dataKey="profit" 
-                    stroke="#10b981" 
-                    fillOpacity={1}
-                    fill="url(#colorProfit)"
-                    dot={{ r: 3, fill: '#10b981', strokeWidth: 1, stroke: '#fff' }}
-                    activeDot={{ r: 5, strokeWidth: 0 }}
-                    hide={!activeSeries.includes('profit')}
-                    animationDuration={1500}
-                  />
+                  {activeSeries.includes('profit') && (
+                    <Line 
+                      type="monotone"
+                      dataKey="profit" 
+                      stroke="#10b981" 
+                      strokeWidth={3}
+                      dot={{ r: 3, fill: '#10b981', strokeWidth: 1, stroke: '#fff' }}
+                      activeDot={{ r: 5, strokeWidth: 0 }}
+                      animationDuration={1500}
+                    />
+                  )}
                 </>
               )}
-            </AreaChart>
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
       </div>

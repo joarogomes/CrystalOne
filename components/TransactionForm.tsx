@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Transaction, TransactionType } from '../types';
+import { Transaction, TransactionType, AccessLevel } from '../types';
 import { Plus, X, Calendar, TrendingDown, Landmark, Info, ChevronLeft, ChevronRight, Edit3, List, ShoppingCart, PieChart as PieIcon, TrendingUp } from 'lucide-react';
 import { SALE_CATEGORIES, EXPENSE_CATEGORIES, INVESTMENT_CATEGORIES, QUICK_SALE_ITEMS } from '../constants';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
@@ -9,8 +9,9 @@ import { Zap } from 'lucide-react';
 interface TransactionFormProps {
   type: TransactionType;
   // Updated signature to match handleAddTransaction in App.tsx
-  onAdd: (transaction: Omit<Transaction, 'id' | 'created_at' | 'store_id'>) => void;
+  onAdd: (transaction: Omit<Transaction, 'id' | 'created_at' | 'store_id'> & { created_at?: string }) => void;
   transactions: Transaction[];
+  accessLevel?: AccessLevel;
 }
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
@@ -22,7 +23,7 @@ const getLocalDateString = (date: Date = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
-const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transactions }) => {
+const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transactions, accessLevel = 'operational' }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [amount, setAmount] = useState('');
   const [unitPrice, setUnitPrice] = useState('');
@@ -90,13 +91,18 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
     
     if (!amount || !finalCategory) return;
 
-    // Removed created_at as it is handled by the backend/App.tsx
+    // Use selectedDate for created_at if it's not today
+    const createdAt = selectedDate === getLocalDateString() 
+      ? new Date().toISOString() 
+      : new Date(selectedDate + 'T12:00:00').toISOString();
+
     onAdd({
       type: activeType as TransactionType,
       category: finalCategory,
       amount: parseFloat(amount),
       description: activeType === 'sale' ? (description || 'Venda consolidada do dia') : description,
-      quantity: parseInt(quantity) || 1
+      quantity: parseInt(quantity) || 1,
+      created_at: createdAt
     });
 
     setAmount('');
@@ -168,10 +174,28 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
   const changeDate = (days: number) => {
     const current = new Date(selectedDate + 'T12:00:00');
     current.setDate(current.getDate() + days);
-    setSelectedDate(current.toISOString().split('T')[0]);
+    const newDateStr = current.toISOString().split('T')[0];
+    
+    // Validate against minDate
+    if (days < 0) {
+      const minDate = new Date();
+      const limit = accessLevel === 'full' ? 14 : 0;
+      minDate.setDate(minDate.getDate() - limit);
+      const minDateStr = getLocalDateString(minDate);
+      if (newDateStr < minDateStr) return;
+    }
+
+    setSelectedDate(newDateStr);
   };
 
   const isToday = selectedDate === getLocalDateString();
+  
+  const isAtMinDate = useMemo(() => {
+    const minDate = new Date();
+    const limit = accessLevel === 'full' ? 14 : 0;
+    minDate.setDate(minDate.getDate() - limit);
+    return selectedDate <= getLocalDateString(minDate);
+  }, [selectedDate, accessLevel]);
 
   const groupedSales = useMemo(() => {
     if (type !== 'sale') return null;
@@ -248,7 +272,8 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
           <div className="glass-card p-4 rounded-[32px] flex items-center justify-between shadow-sm bg-white/60 dark:bg-slate-900/60 border border-white dark:border-slate-800">
             <button 
               onClick={() => changeDate(-1)} 
-              className="p-3 text-slate-400 hover:text-blue-600 transition-all rounded-2xl hover:bg-white dark:hover:bg-slate-800"
+              disabled={isAtMinDate}
+              className={`p-3 transition-all rounded-2xl ${isAtMinDate ? 'opacity-10 cursor-not-allowed' : 'text-slate-400 hover:text-blue-600 hover:bg-white dark:hover:bg-slate-800'}`}
             >
               <ChevronLeft size={20} />
             </button>
@@ -256,7 +281,18 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
               <input 
                 type="date" 
                 value={selectedDate} 
-                onChange={(e) => setSelectedDate(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const today = getLocalDateString();
+                  const minDate = new Date();
+                  const limit = accessLevel === 'full' ? 14 : 0;
+                  minDate.setDate(minDate.getDate() - limit);
+                  const minDateStr = getLocalDateString(minDate);
+                  
+                  if (val > today) return;
+                  if (val < minDateStr) return;
+                  setSelectedDate(val);
+                }}
                 className="text-sm font-black text-slate-900 dark:text-slate-100 bg-transparent cursor-pointer text-center focus:outline-none"
               />
               <span className="text-[9px] text-blue-600 dark:text-blue-400 font-black uppercase tracking-[0.2em] mt-1">

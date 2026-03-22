@@ -195,11 +195,12 @@ const App: React.FC = () => {
     }
   };
 
-  const handleAddTransaction = async (newT: Omit<Transaction, 'id' | 'created_at' | 'store_id'>) => {
+  const handleAddTransaction = async (newT: Omit<Transaction, 'id' | 'created_at' | 'store_id'> & { created_at?: string }) => {
     try {
+      const payload = { ...newT, store_id: activeStoreId };
       const { data, error } = await supabase
         .from('transactions')
-        .insert([{ ...newT, store_id: activeStoreId }])
+        .insert([payload])
         .select()
         .single();
 
@@ -378,8 +379,8 @@ const App: React.FC = () => {
             accessLevel={accessLevel}
           />
         )}
-        {activeView === 'sales' && <TransactionForm type="sale" onAdd={handleAddTransaction} transactions={transactions} />}
-        {activeView === 'expenses' && <TransactionForm type="expense" onAdd={handleAddTransaction} transactions={transactions} />}
+        {activeView === 'sales' && <TransactionForm type="sale" onAdd={handleAddTransaction} transactions={transactions} accessLevel={accessLevel} />}
+        {activeView === 'expenses' && <TransactionForm type="expense" onAdd={handleAddTransaction} transactions={transactions} accessLevel={accessLevel} />}
         {activeView === 'inventory' && <InventoryView inventory={inventory} movements={inventoryMovements} onUpdate={handleUpdateInventory} onAddItem={handleAddInventoryItem} />}
         {activeView === 'reports' && (
           <ReportsView 

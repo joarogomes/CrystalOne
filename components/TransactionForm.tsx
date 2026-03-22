@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Transaction, TransactionType } from '../types';
 import { Plus, X, Calendar, TrendingDown, Landmark, Info, ChevronLeft, ChevronRight, Edit3, List, ShoppingCart, PieChart as PieIcon, TrendingUp } from 'lucide-react';
 import { SALE_CATEGORIES, EXPENSE_CATEGORIES, INVESTMENT_CATEGORIES, QUICK_SALE_ITEMS } from '../constants';
@@ -25,8 +25,10 @@ const getLocalDateString = (date: Date = new Date()) => {
 const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transactions }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [amount, setAmount] = useState('');
+  const [unitPrice, setUnitPrice] = useState('');
   const [subType, setSubType] = useState<'expense' | 'investment'>(type === 'sale' ? 'expense' : type as any);
-  const [category, setCategory] = useState(type === 'sale' ? 'Água 20L' : '');
+  const [category, setCategory] = useState(type === 'sale' ? SALE_CATEGORIES[0] : '');
+  const [quantity, setQuantity] = useState('1');
   const [customCategory, setCustomCategory] = useState('');
   const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [description, setDescription] = useState('');
@@ -38,14 +40,48 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
                     activeType === 'expense' ? EXPENSE_CATEGORIES : 
                     INVESTMENT_CATEGORIES;
 
+  useEffect(() => {
+    if (isOpen && activeType === 'sale') {
+      const quickItem = QUICK_SALE_ITEMS.find(i => i.name === category);
+      if (quickItem) {
+        const price = quickItem.price;
+        setUnitPrice(price.toString());
+        const q = parseInt(quantity) || 1;
+        setAmount((price * q).toString());
+      } else {
+        setUnitPrice('');
+        // Don't clear amount here if it's not a quick item, 
+        // user might have entered it manually for 'Entrega' etc.
+      }
+    }
+  }, [isOpen, category, activeType, quantity]);
+
   const handleQuickSale = (name: string, price: number) => {
-    onAdd({
-      type: 'sale',
-      category: name,
-      amount: price,
-      description: `Venda Rápida: ${name}`,
-      quantity: 1
-    });
+    setCategory(name);
+    setUnitPrice(price.toString());
+    setAmount(price.toString());
+    setQuantity('1');
+    setDescription(`Venda: ${name}`);
+    setIsOpen(true);
+  };
+
+  const handleCategoryChange = (val: string) => {
+    setCategory(val);
+    // The useEffect will handle updating unitPrice and amount
+  };
+
+  const handleQuantityChange = (val: string) => {
+    setQuantity(val);
+    if (unitPrice && val) {
+      const total = parseFloat(unitPrice) * (parseInt(val) || 0);
+      setAmount(total.toString());
+    }
+  };
+
+  const handleAmountChange = (val: string) => {
+    setAmount(val);
+    // If user manually changes total, we reset unitPrice to avoid confusion
+    setUnitPrice('');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -60,11 +96,13 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
       category: finalCategory,
       amount: parseFloat(amount),
       description: activeType === 'sale' ? (description || 'Venda consolidada do dia') : description,
-      quantity: 1
+      quantity: parseInt(quantity) || 1
     });
 
     setAmount('');
-    setCategory(activeType === 'sale' ? 'Água 20L' : '');
+    setUnitPrice('');
+    setCategory(activeType === 'sale' ? SALE_CATEGORIES[0] : '');
+    setQuantity('1');
     setCustomCategory('');
     setIsCustomCategory(false);
     setDescription('');
@@ -236,7 +274,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
         )}
 
         {type === 'sale' && (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {QUICK_SALE_ITEMS.map(item => (
               <button
                 key={item.name}
@@ -511,7 +549,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
                 ) : (
                   <select 
                     value={category} 
-                    onChange={e => setCategory(e.target.value)} 
+                    onChange={e => handleCategoryChange(e.target.value)} 
                     className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-6 py-5 text-slate-900 dark:text-slate-100 font-bold focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:outline-none appearance-none" 
                     required
                   >
@@ -521,16 +559,32 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
                 )}
               </div>
 
-              <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] px-2">Valor (Kz)</label>
-                <input 
-                  type="number" 
-                  value={amount} 
-                  onChange={e => setAmount(e.target.value)} 
-                  placeholder="0,00" 
-                  className="w-full bg-slate-900 dark:bg-black text-white rounded-[32px] px-8 py-8 text-4xl font-black focus:ring-8 focus:ring-blue-900/10 focus:outline-none transition-all" 
-                  required 
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] px-2">Total (Kz)</label>
+                  <input 
+                    type="number" 
+                    value={amount} 
+                    onChange={e => handleAmountChange(e.target.value)} 
+                    placeholder="0,00" 
+                    className={`w-full bg-slate-900 dark:bg-black text-white rounded-[32px] px-6 py-6 text-2xl font-black focus:ring-8 focus:ring-blue-900/10 focus:outline-none transition-all ${unitPrice ? 'opacity-30 cursor-not-allowed select-none pointer-events-none' : ''}`} 
+                    required 
+                    readOnly={!!unitPrice}
+                    tabIndex={unitPrice ? -1 : 0}
+                  />
+                </div>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] px-2">Qtd / Un</label>
+                  <input 
+                    type="number" 
+                    value={quantity} 
+                    onChange={e => handleQuantityChange(e.target.value)} 
+                    placeholder="1" 
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[32px] px-6 py-6 text-2xl font-black text-slate-900 dark:text-slate-100 focus:ring-8 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:outline-none transition-all" 
+                    required 
+                    min="1"
+                  />
+                </div>
               </div>
 
               <div className="space-y-3">

@@ -362,43 +362,47 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, accessLevel =
                 animationDuration={1500}
               />
               
-              <Area 
-                type="monotone"
-                dataKey="expenses" 
-                stackId="1"
-                stroke="#f43f5e" 
-                fillOpacity={1}
-                fill="url(#colorExpenses)"
-                dot={{ r: 2, fill: '#f43f5e', strokeWidth: 1, stroke: '#fff' }}
-                activeDot={{ r: 4, strokeWidth: 0 }}
-                hide={!activeSeries.includes('expenses')}
-                animationDuration={1500}
-              />
+              {accessLevel === 'full' && (
+                <>
+                  <Area 
+                    type="monotone"
+                    dataKey="expenses" 
+                    stackId="1"
+                    stroke="#f43f5e" 
+                    fillOpacity={1}
+                    fill="url(#colorExpenses)"
+                    dot={{ r: 2, fill: '#f43f5e', strokeWidth: 1, stroke: '#fff' }}
+                    activeDot={{ r: 4, strokeWidth: 0 }}
+                    hide={!activeSeries.includes('expenses')}
+                    animationDuration={1500}
+                  />
 
-              <Area 
-                type="monotone"
-                dataKey="investments" 
-                stackId="1"
-                stroke="#f59e0b" 
-                fillOpacity={1}
-                fill="url(#colorInvestments)"
-                dot={{ r: 2, fill: '#f59e0b', strokeWidth: 1, stroke: '#fff' }}
-                activeDot={{ r: 4, strokeWidth: 0 }}
-                hide={!activeSeries.includes('investments')}
-                animationDuration={1500}
-              />
-              
-              <Area 
-                type="monotone"
-                dataKey="profit" 
-                stroke="#10b981" 
-                fillOpacity={1}
-                fill="url(#colorProfit)"
-                dot={{ r: 3, fill: '#10b981', strokeWidth: 1, stroke: '#fff' }}
-                activeDot={{ r: 5, strokeWidth: 0 }}
-                hide={!activeSeries.includes('profit')}
-                animationDuration={1500}
-              />
+                  <Area 
+                    type="monotone"
+                    dataKey="investments" 
+                    stackId="1"
+                    stroke="#f59e0b" 
+                    fillOpacity={1}
+                    fill="url(#colorInvestments)"
+                    dot={{ r: 2, fill: '#f59e0b', strokeWidth: 1, stroke: '#fff' }}
+                    activeDot={{ r: 4, strokeWidth: 0 }}
+                    hide={!activeSeries.includes('investments')}
+                    animationDuration={1500}
+                  />
+                  
+                  <Area 
+                    type="monotone"
+                    dataKey="profit" 
+                    stroke="#10b981" 
+                    fillOpacity={1}
+                    fill="url(#colorProfit)"
+                    dot={{ r: 3, fill: '#10b981', strokeWidth: 1, stroke: '#fff' }}
+                    activeDot={{ r: 5, strokeWidth: 0 }}
+                    hide={!activeSeries.includes('profit')}
+                    animationDuration={1500}
+                  />
+                </>
+              )}
             </AreaChart>
           </ResponsiveContainer>
         </div>

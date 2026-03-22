@@ -27,15 +27,6 @@ const CustomTooltip = ({ active, payload, label }: any) => {
             </div>
             <span className="text-sm font-black text-blue-600">+{sales.toLocaleString()} Kz</span>
           </div>
-          {data.avgPrice > 0 && (
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-slate-400"></div>
-                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Preço Médio</span>
-              </div>
-              <span className="text-sm font-black text-slate-600 dark:text-slate-300">{data.avgPrice.toFixed(2)} Kz</span>
-            </div>
-          )}
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-rose-500"></div>
@@ -141,24 +132,22 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, accessLevel =
       }
     });
 
-    const getPriceColor = (price: number) => {
-      if (price <= 0) return '#2563eb'; // Default blue if no sales
-      if (price <= 17) return '#ef4444'; // Red
-      if (price <= 25) return '#f59e0b'; // Yellow
-      return '#10b981'; // Green
+    const getSalesColor = (amount: number) => {
+      if (amount <= 0) return '#2563eb'; // Azul padrão se não houver vendas
+      if (amount <= 17000) return '#ef4444'; // Vermelho para vendas baixas
+      if (amount <= 25000) return '#f59e0b'; // Amarelo para vendas médias
+      return '#10b981'; // Verde para vendas altas
     };
 
     for (let i = 1; i <= daysInMonth; i++) {
       const stats = statsMap[i] || { sales: 0, expenses: 0, investments: 0, quantity: 0 };
-      const avgPrice = stats.quantity > 0 ? stats.sales / stats.quantity : 0;
       data.push({ 
         day: i, 
         sales: stats.sales, 
         expenses: stats.expenses,
         investments: stats.investments,
         profit: stats.sales - stats.expenses - stats.investments,
-        avgPrice,
-        color: getPriceColor(avgPrice)
+        color: getSalesColor(stats.sales)
       });
     }
     return data;

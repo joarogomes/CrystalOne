@@ -242,13 +242,12 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
 
     return Object.entries(groups)
       .map(([name, data]) => {
-        const avgPrice = data.quantity > 0 ? data.amount / data.quantity : 0;
-        let color = '#2563eb'; // Default blue
-        if (avgPrice <= 17) color = '#ef4444'; // Red
-        else if (avgPrice <= 25) color = '#f59e0b'; // Yellow
-        else color = '#10b981'; // Green
+        let color = '#2563eb'; // Azul padrão se não houver vendas
+        if (data.amount <= 17000) color = '#ef4444'; // Vermelho para vendas baixas
+        else if (data.amount <= 25000) color = '#f59e0b'; // Amarelo para vendas médias
+        else color = '#10b981'; // Verde para vendas altas
 
-        return { name, value: data.amount, color, avgPrice };
+        return { name, value: data.amount, color };
       })
       .slice(-12); // Last 12 periods
   }, [transactions, salesTimeFilter, type]);
@@ -393,7 +392,6 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
                           <div className="bg-slate-900 p-4 rounded-2xl shadow-2xl border border-white/10 animate-premium">
                             <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">{data.name}</p>
                             <p className="text-lg font-black text-white">{data.value?.toLocaleString()} Kz</p>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Preço Médio: {data.avgPrice.toFixed(2)} Kz</p>
                           </div>
                         );
                       }

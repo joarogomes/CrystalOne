@@ -10,7 +10,6 @@ export const QUICK_SALE_ITEMS = [
   { name: 'Água 6L', price: 200 },
   { name: 'Água 5L', price: 150 },
   { name: 'Água 1.5L', price: 50 },
-  { name: 'Tampa', price: 130 },
 ];
 export const EXPENSE_CATEGORIES = ['Aluguel', 'Energia', 'Salários', 'Manutenção', 'Combustível', 'Impostos', 'Marketing', 'Saída de Caixa'];
 export const INVESTMENT_CATEGORIES = ['Maquinário', 'Novos Galões', 'Reforma Loja', 'Veículo', 'Móveis', 'Tecnologia'];

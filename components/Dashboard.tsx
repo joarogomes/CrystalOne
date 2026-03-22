@@ -1,6 +1,6 @@
 
 import React, { useMemo, useState, useEffect } from 'react';
-import { ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, AreaChart, Area, BarChart, Bar, Line, ComposedChart, Legend, ReferenceLine } from 'recharts';
+import { ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, AreaChart, Area, BarChart, Bar, Line, ComposedChart, Legend, ReferenceLine, Cell } from 'recharts';
 import { BusinessState, AccessLevel } from '../types';
 import { getDailyMarketingTip } from '../services/geminiService';
 import { TrendingUp, TrendingDown, Wallet, BarChart3, Calendar, Sparkles, AlertCircle, Lightbulb, RefreshCw, Loader2, ShoppingBag, Plus } from 'lucide-react';

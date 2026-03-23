@@ -27,7 +27,8 @@ import {
   ChevronDown,
   Landmark,
   CalendarDays,
-  MessageCircle
+  MessageCircle,
+  ShoppingCart
 } from 'lucide-react';
 import { AccessLevel } from '../types';
 
@@ -130,6 +131,8 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
     return (localStorage.getItem('reports_active_tab') as any) || 'transactions';
   });
   const [filterType, setFilterType] = useState<'all' | 'sale' | 'expense' | 'investment'>('all');
+  const [financeViewMode, setFinanceViewMode] = useState<'history' | 'products'>('history');
+  const [selectedProduct, setSelectedProduct] = useState('');
   const [phValue, setPhValue] = useState('');
   const [showPHForm, setShowPHForm] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -185,6 +188,25 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
     return { avg, max, min, stability };
   }, [filteredPhRecords]);
 
+  const salesByProduct = useMemo(() => {
+    const products: Record<string, { category: string, quantity: number, total: number }> = {};
+    
+    state.transactions
+      .filter(t => t.type === 'sale')
+      .forEach(t => {
+        const cat = t.category || 'Sem Categoria';
+        if (!products[cat]) {
+          products[cat] = { category: cat, quantity: 0, total: 0 };
+        }
+        products[cat].quantity += (t.quantity || 1);
+        products[cat].total += t.amount;
+      });
+      
+    return Object.values(products)
+      .filter(p => p.category.toLowerCase().includes(selectedProduct.toLowerCase()))
+      .sort((a, b) => b.quantity - a.quantity);
+  }, [state.transactions, selectedProduct]);
+
   const groupedTransactions = useMemo(() => {
     const groups: Record<string, { 
       date: string, 
@@ -192,17 +214,22 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
       expenses: number, 
       investments: number, 
       count: number,
+      quantity: number,
       items: Transaction[] 
     }> = {};
 
     state.transactions
       .filter(t => filterType === 'all' || t.type === filterType)
+      .filter(t => !selectedProduct || t.category.toLowerCase().includes(selectedProduct.toLowerCase()))
       .forEach(t => {
         const dateKey = getLocalDateString(new Date(t.created_at));
         if (!groups[dateKey]) { 
-          groups[dateKey] = { date: dateKey, sales: 0, expenses: 0, investments: 0, count: 0, items: [] }; 
+          groups[dateKey] = { date: dateKey, sales: 0, expenses: 0, investments: 0, count: 0, quantity: 0, items: [] }; 
         }
-        if (t.type === 'sale') groups[dateKey].sales += t.amount;
+        if (t.type === 'sale') {
+          groups[dateKey].sales += t.amount;
+          groups[dateKey].quantity += (t.quantity || 1);
+        }
         else if (t.type === 'expense') groups[dateKey].expenses += t.amount;
         else if (t.type === 'investment') groups[dateKey].investments += t.amount;
         groups[dateKey].count += 1;
@@ -210,7 +237,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
       });
 
     return Object.values(groups).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [state.transactions, filterType]);
+  }, [state.transactions, filterType, selectedProduct]);
 
   const totalSales = useMemo(() => state.transactions.filter(t => t.type === 'sale').reduce((s,t) => s+t.amount, 0), [state.transactions]);
   const totalOut = useMemo(() => state.transactions.filter(t => t.type !== 'sale').reduce((s,t) => s+t.amount, 0), [state.transactions]);
@@ -403,16 +430,95 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
                <Sparkles size={300} className="absolute -right-32 -bottom-32 text-white/5 opacity-40 rotate-12" />
             </div>
 
-            <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-2">
-              {(['all', 'sale', 'expense', 'investment'] as const).map(type => (
-                <button key={type} onClick={() => setFilterType(type)} className={`flex-shrink-0 px-8 py-4 rounded-full text-[10px] font-black uppercase transition-all border ${filterType === type ? 'bg-blue-600 dark:bg-blue-500 text-white border-blue-600 dark:border-blue-500 shadow-xl' : 'bg-white dark:bg-slate-900 text-slate-400 dark:text-slate-500 border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-800'}`}>
-                  {type === 'all' ? 'Tudo' : type === 'sale' ? 'Vendas' : type === 'expense' ? 'Saídas' : 'Investimento'}
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-2">
+                {(['all', 'sale', 'expense', 'investment'] as const).map(type => (
+                  <button key={type} onClick={() => { setFilterType(type); setFinanceViewMode('history'); }} className={`flex-shrink-0 px-8 py-4 rounded-full text-[10px] font-black uppercase transition-all border ${filterType === type && financeViewMode === 'history' ? 'bg-blue-600 dark:bg-blue-500 text-white border-blue-600 dark:border-blue-500 shadow-xl' : 'bg-white dark:bg-slate-900 text-slate-400 dark:text-slate-500 border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-800'}`}>
+                    {type === 'all' ? 'Tudo' : type === 'sale' ? 'Vendas' : type === 'expense' ? 'Saídas' : 'Investimento'}
+                  </button>
+                ))}
+                <button 
+                  onClick={() => setFinanceViewMode('products')} 
+                  className={`flex-shrink-0 px-8 py-4 rounded-full text-[10px] font-black uppercase transition-all border ${financeViewMode === 'products' ? 'bg-blue-600 dark:bg-blue-500 text-white border-blue-600 dark:border-blue-500 shadow-xl' : 'bg-white dark:bg-slate-900 text-slate-400 dark:text-slate-500 border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-800'}`}
+                >
+                  Vendas por Produto
                 </button>
-              ))}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mr-2">Filtrar Produto:</span>
+                {['Água 6L', 'Água 20L', 'Água 1.5L'].map(product => (
+                  <button 
+                    key={product}
+                    onClick={() => {
+                      setSelectedProduct(selectedProduct === product ? '' : product);
+                      setFinanceViewMode('history');
+                    }}
+                    className={`px-4 py-2 rounded-full text-[9px] font-black uppercase transition-all border ${selectedProduct === product ? 'bg-emerald-600 border-emerald-600 text-white shadow-lg' : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-100 dark:border-slate-800 hover:border-emerald-200 dark:hover:border-emerald-800'}`}
+                  >
+                    {product}
+                  </button>
+                ))}
+                
+                <div className="relative">
+                  <select 
+                    value={selectedProduct}
+                    onChange={(e) => {
+                      setSelectedProduct(e.target.value);
+                      if (e.target.value) setFinanceViewMode('history');
+                    }}
+                    className="appearance-none bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-full px-6 py-2 text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500/20 pr-10 cursor-pointer"
+                  >
+                    <option value="">Outros Produtos</option>
+                    {(Array.from(new Set(state.transactions.filter(t => t.type === 'sale').map(t => t.category))) as string[]).filter(c => !['Água 6L', 'Água 20L', 'Água 1.5L'].includes(c)).map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                    <ChevronDown size={12} />
+                  </div>
+                </div>
+
+                {selectedProduct && (
+                  <button 
+                    onClick={() => setSelectedProduct('')}
+                    className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-full transition-all"
+                    title="Limpar Filtro"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
             </div>
 
-            <div className="space-y-4 md:space-y-6">
-              {groupedTransactions.map(group => {
+            {financeViewMode === 'history' ? (
+              <div className="space-y-4 md:space-y-6">
+                {selectedProduct && (
+                  <div className="bg-emerald-50 dark:bg-emerald-950/20 p-6 rounded-[32px] border border-emerald-100 dark:border-emerald-900/50 mb-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-[0.4em]">Relatório de Vendas</span>
+                        <h3 className="text-2xl font-black text-slate-900 dark:text-slate-100">{selectedProduct}</h3>
+                      </div>
+                      <div className="flex gap-8">
+                        <div className="flex flex-col items-end">
+                          <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Qtd Total</span>
+                          <span className="text-xl font-black text-slate-900 dark:text-slate-100">
+                            {groupedTransactions.reduce((acc, g) => acc + g.quantity, 0)}
+                          </span>
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Valor Total</span>
+                          <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">
+                            {groupedTransactions.reduce((acc, g) => acc + g.sales, 0).toLocaleString()} Kz
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {groupedTransactions.map(group => {
                 const isExpanded = !!expandedDates[group.date];
                 return (
                   <div key={group.date} className="group/item">
@@ -429,18 +535,31 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
                         </div>
                         <div className="flex flex-col items-start text-left">
                           <h4 className="text-xs md:text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">
-                            {new Date(group.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                            {new Date(group.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
                           </h4>
                           <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 mt-0.5">{group.count} transações</span>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-4 md:gap-6">
-                        <div className="flex gap-2 md:gap-4 font-black text-[10px] md:text-xs uppercase tracking-widest">
-                          <span className="text-emerald-600 dark:text-emerald-400">+{group.sales.toLocaleString()}</span>
-                          <span className="text-rose-500 dark:text-rose-400">-{group.expenses.toLocaleString()}</span>
-                          {group.investments > 0 && <span className="text-amber-600 dark:text-amber-400">-{group.investments.toLocaleString()}</span>}
-                        </div>
+                        {selectedProduct ? (
+                          <div className="flex items-center gap-6">
+                            <div className="flex flex-col items-end">
+                              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Qtd</span>
+                              <span className="text-xs font-black text-slate-900 dark:text-slate-100">{group.quantity}</span>
+                            </div>
+                            <div className="flex flex-col items-end">
+                              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Total</span>
+                              <span className="text-xs font-black text-emerald-600 dark:text-emerald-400">{group.sales.toLocaleString()} Kz</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2 md:gap-4 font-black text-[10px] md:text-xs uppercase tracking-widest">
+                            <span className="text-emerald-600 dark:text-emerald-400">+{group.sales.toLocaleString()}</span>
+                            <span className="text-rose-500 dark:text-rose-400">-{group.expenses.toLocaleString()}</span>
+                            {group.investments > 0 && <span className="text-amber-600 dark:text-amber-400">-{group.investments.toLocaleString()}</span>}
+                          </div>
+                        )}
                         <div className={`hidden sm:block px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest ${
                           isExpanded ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'
                         }`}>
@@ -487,7 +606,38 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
                   </div>
                 );
               })}
+              {groupedTransactions.length === 0 && (
+                <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-[32px] border border-dashed border-slate-200 dark:border-slate-800">
+                  <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Nenhuma transação encontrada</p>
+                </div>
+              )}
             </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 animate-fadeIn">
+                {salesByProduct.map(product => (
+                  <div key={product.category} className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all group">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="p-3 bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 rounded-2xl group-hover:bg-blue-600 group-hover:text-white transition-all">
+                        <ShoppingCart size={20} />
+                      </div>
+                      <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 px-3 py-1 rounded-full uppercase tracking-widest">
+                        {product.quantity} Unidades
+                      </span>
+                    </div>
+                    <h4 className="text-lg font-black text-slate-900 dark:text-slate-100 mb-1">{product.category}</h4>
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-50 dark:border-slate-800">
+                      <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Total em Vendas</span>
+                      <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">{product.total.toLocaleString()} Kz</span>
+                    </div>
+                  </div>
+                ))}
+                {salesByProduct.length === 0 && (
+                  <div className="col-span-full text-center py-20 bg-white dark:bg-slate-900 rounded-[32px] border border-dashed border-slate-200 dark:border-slate-800">
+                    <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Nenhum produto encontrado</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 

@@ -91,7 +91,18 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
     e.preventDefault();
     const finalCategory = isCustomCategory ? customCategory : category;
     
-    if (!amount || !finalCategory) return;
+    console.log("Submetendo formulário de transação:", {
+      amount,
+      finalCategory,
+      activeType,
+      paymentMethod,
+      selectedDate
+    });
+
+    if (!amount || !finalCategory) {
+      console.warn("Campos obrigatórios faltando:", { amount, finalCategory });
+      return;
+    }
 
     // Use selectedDate for created_at if it's not today
     const createdAt = selectedDate === getLocalDateString() 
@@ -206,7 +217,11 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
     
     transactions
       .filter(t => t.type === 'sale')
-      .filter(t => getLocalDateString(new Date(t.created_at)) === selectedDate)
+      .filter(t => {
+        const tDate = new Date(t.created_at);
+        const tDateStr = getLocalDateString(tDate);
+        return tDateStr === selectedDate;
+      })
       .filter(t => paymentMethodFilter === 'Todos' || t.payment_method === paymentMethodFilter)
       .forEach(t => {
         /* Fix: changed t.date to t.created_at */

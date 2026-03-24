@@ -166,15 +166,27 @@ const App: React.FC = () => {
     setIsTestingDb(true);
     try {
       // 1. Teste de Escrita em transações (mais seguro que notificações que não existem)
-      const { error: writeError } = await supabase.from('transactions').select('id').limit(1);
+      const testId = crypto.randomUUID();
+      const { error: writeError } = await supabase.from('transactions').insert([{
+        id: testId,
+        store_id: activeStoreId,
+        type: 'investment',
+        category: 'Teste de Sistema',
+        amount: 0,
+        description: 'Teste de conexão de banco de dados (Pode ser apagado)',
+        quantity: 1
+      }]);
 
       if (writeError) throw writeError;
+
+      // 2. Limpar o teste
+      await supabase.from('transactions').delete().eq('id', testId);
 
       const successNotification: AppNotification = {
         id: crypto.randomUUID(),
         store_id: activeStoreId,
         title: 'Sucesso!',
-        message: 'Conexão com Supabase testada e aprovada (Leitura OK).',
+        message: 'Conexão com Supabase testada e aprovada (Escrita e Leitura OK).',
         type: 'info',
         read: false,
         created_at: new Date().toISOString()
@@ -188,7 +200,7 @@ const App: React.FC = () => {
         id: crypto.randomUUID(),
         store_id: activeStoreId,
         title: 'Erro no Teste',
-        message: `Falha ao conectar ao banco: ${err.message || 'Erro desconhecido'}`,
+        message: `Falha ao conectar ao banco: ${err.message || 'Erro desconhecido'}. Verifique se as tabelas foram criadas no Supabase.`,
         type: 'danger',
         read: false,
         created_at: new Date().toISOString()
@@ -199,19 +211,46 @@ const App: React.FC = () => {
   };
 
   const handleAddTransaction = async (newT: Omit<Transaction, 'id' | 'created_at' | 'store_id'> & { created_at?: string }) => {
+    console.log("Iniciando handleAddTransaction com:", newT);
     try {
       const payload = { ...newT, store_id: activeStoreId };
+      console.log("Enviando payload para Supabase:", payload);
       const { data, error } = await supabase
         .from('transactions')
         .insert([payload])
         .select()
         .single();
 
-      if (error) throw error;
-      if (data) setTransactions(prev => [data, ...prev]);
+      if (error) {
+        console.error("Erro retornado pelo Supabase:", error);
+        throw error;
+      }
+      
+      if (data) {
+        console.log("Transação salva com sucesso:", data);
+        setTransactions(prev => [data, ...prev]);
+        setToast({
+          id: crypto.randomUUID(),
+          store_id: activeStoreId || '',
+          title: 'Registro Sucesso',
+          message: `${newT.type === 'sale' ? 'Venda' : newT.type === 'expense' ? 'Despesa' : 'Investimento'} de ${newT.amount.toLocaleString()} Kz registrada.`,
+          type: 'info',
+          read: false,
+          created_at: new Date().toISOString()
+        });
+      }
       return data;
-    } catch (err) {
+    } catch (err: any) {
       console.error("Erro ao salvar transação:", err);
+      setToast({
+        id: crypto.randomUUID(),
+        store_id: activeStoreId || '',
+        title: 'Erro de Sincronização',
+        message: `Falha ao salvar no banco: ${err.message || 'Erro de rede'}. Verifique se a coluna 'payment_method' existe na tabela 'transactions'.`,
+        type: 'danger',
+        read: false,
+        created_at: new Date().toISOString()
+      });
       const fallback: Transaction = {
         ...newT,
         id: crypto.randomUUID(),
@@ -240,7 +279,8 @@ const App: React.FC = () => {
           category: item.name,
           amount: totalSaleAmount,
           description: `Venda via CrystalOne: ${item.name} (${quantitySold} ${item.unit})`,
-          quantity: quantitySold
+          quantity: quantitySold,
+          payment_method: 'Consolidada'
         });
 
         const saleNotification: AppNotification = {
@@ -258,14 +298,26 @@ const App: React.FC = () => {
     }
 
     try {
-      await supabase.from('inventory_items').update({ quantity: newQty }).eq('id', id);
-      await supabase.from('inventory_movements').insert([{
+      const { error: updateError } = await supabase.from('inventory_items').update({ quantity: newQty }).eq('id', id);
+      const { error: moveError } = await supabase.from('inventory_movements').insert([{
         item_id: id,
         quantity: Math.abs(delta),
         type: delta > 0 ? 'in' : 'out'
       }]);
-    } catch (err) {
+      
+      if (updateError) throw updateError;
+      if (moveError) throw moveError;
+    } catch (err: any) {
       console.error("Erro ao sincronizar estoque:", err);
+      setToast({
+        id: crypto.randomUUID(),
+        store_id: activeStoreId || '',
+        title: 'Erro de Estoque',
+        message: `Falha ao sincronizar estoque com o servidor: ${err.message || 'Erro de rede'}`,
+        type: 'danger',
+        read: false,
+        created_at: new Date().toISOString()
+      });
     }
   };
 
@@ -275,11 +327,14 @@ const App: React.FC = () => {
     else if ((value >= 6.5 && value < 6.8) || (value > 7.5 && value <= 8.0)) status = 'Alerta';
 
     try {
-      const { data } = await supabase.from('ph_records').insert([{
+      const { data, error } = await supabase.from('ph_records').insert([{
         store_id: activeStoreId,
         value,
         status
       }]).select().single();
+      
+      if (error) throw error;
+      
       if (data) {
         setPhRecords(prev => [data, ...prev]);
         if (status !== 'Ideal') {
@@ -295,15 +350,29 @@ const App: React.FC = () => {
           setToast(phNotification);
         }
       }
-    } catch (err) {}
+    } catch (err: any) {
+      console.error("Erro ao salvar pH:", err);
+      setToast({
+        id: crypto.randomUUID(),
+        store_id: activeStoreId || '',
+        title: 'Erro de Registro',
+        message: `Falha ao salvar registro de pH: ${err.message || 'Erro de rede'}`,
+        type: 'danger',
+        read: false,
+        created_at: new Date().toISOString()
+      });
+    }
   };
 
   const handleAddMaintenance = async (maint: Omit<MaintenanceRecord, 'id' | 'store_id' | 'created_at'>) => {
     try {
-      const { data } = await supabase.from('maintenance_records').insert([{
+      const { data, error } = await supabase.from('maintenance_records').insert([{
         ...maint,
         store_id: activeStoreId
       }]).select().single();
+      
+      if (error) throw error;
+      
       if (data) {
         setMaintenanceRecords(prev => [data, ...prev]);
         setToast({
@@ -316,20 +385,54 @@ const App: React.FC = () => {
           created_at: new Date().toISOString()
         });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Erro ao salvar manutenção:", err);
+      setToast({
+        id: crypto.randomUUID(),
+        store_id: activeStoreId || '',
+        title: 'Erro de Registro',
+        message: `Falha ao salvar manutenção: ${err.message || 'Erro de rede'}`,
+        type: 'danger',
+        read: false,
+        created_at: new Date().toISOString()
+      });
     }
   };
 
   const handleAddInventoryItem = async (newItem: Omit<InventoryItem, 'id' | 'store_id' | 'created_at'>) => {
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('inventory_items')
         .insert([{ ...newItem, store_id: activeStoreId }])
         .select()
         .single();
-      if (data) setInventory(prev => [...prev, data]);
-    } catch (err) {}
+      
+      if (error) throw error;
+      
+      if (data) {
+        setInventory(prev => [...prev, data]);
+        setToast({
+          id: crypto.randomUUID(),
+          store_id: activeStoreId || '',
+          title: 'Item Adicionado',
+          message: `${newItem.name} foi adicionado ao estoque.`,
+          type: 'info',
+          read: false,
+          created_at: new Date().toISOString()
+        });
+      }
+    } catch (err: any) {
+      console.error("Erro ao adicionar item:", err);
+      setToast({
+        id: crypto.randomUUID(),
+        store_id: activeStoreId || '',
+        title: 'Erro de Cadastro',
+        message: `Falha ao adicionar item ao estoque: ${err.message || 'Erro de rede'}`,
+        type: 'danger',
+        read: false,
+        created_at: new Date().toISOString()
+      });
+    }
   };
 
   if (isInitialLoading) {
@@ -388,8 +491,33 @@ const App: React.FC = () => {
       isDarkMode={isDarkMode}
       onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
       onAddStore={async (name) => {
-        const { data } = await supabase.from('stores').insert([{ name }]).select().single();
-        if (data) setStores(prev => [...prev, data]);
+        try {
+          const { data, error } = await supabase.from('stores').insert([{ name }]).select().single();
+          if (error) throw error;
+          if (data) {
+            setStores(prev => [...prev, data]);
+            setToast({
+              id: crypto.randomUUID(),
+              store_id: data.id,
+              title: 'Unidade Criada',
+              message: `A unidade ${name} foi criada com sucesso.`,
+              type: 'info',
+              read: false,
+              created_at: new Date().toISOString()
+            });
+          }
+        } catch (err: any) {
+          console.error("Erro ao criar unidade:", err);
+          setToast({
+            id: crypto.randomUUID(),
+            store_id: activeStoreId || '',
+            title: 'Erro de Criação',
+            message: `Falha ao criar nova unidade: ${err.message || 'Erro de rede'}`,
+            type: 'danger',
+            read: false,
+            created_at: new Date().toISOString()
+          });
+        }
       }}
       onLogout={async () => {
         setIsAuthenticated(false);

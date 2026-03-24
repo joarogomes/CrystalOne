@@ -5,6 +5,7 @@ import { Database, Copy, CheckCircle2, Terminal, ExternalLink, AlertCircle } fro
 const SQL_SCRIPT = `-- SQL de Retificação e Inicialização do CrystalOne no Supabase
 -- ATENÇÃO: Se desejar apagar tudo e recomeçar do zero, descomente as linhas DROP abaixo.
 
+-- DROP TABLE IF EXISTS public.maintenance_records CASCADE;
 -- DROP TABLE IF EXISTS public.inventory_movements CASCADE;
 -- DROP TABLE IF EXISTS public.ph_records CASCADE;
 -- DROP TABLE IF EXISTS public.transactions CASCADE;
@@ -40,6 +41,7 @@ CREATE TABLE IF NOT EXISTS public.transactions (
   amount DOUBLE PRECISION NOT NULL,
   description TEXT,
   quantity INTEGER DEFAULT 1,
+  payment_method TEXT CHECK (payment_method IN ('Express', 'Consolidada', 'TPA')),
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -61,12 +63,24 @@ CREATE TABLE IF NOT EXISTS public.inventory_movements (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- 6. Tabela de Registros de Manutenção
+CREATE TABLE IF NOT EXISTS public.maintenance_records (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  store_id UUID REFERENCES public.stores(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  type TEXT NOT NULL,
+  area TEXT NOT NULL,
+  description TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- Habilitar RLS em todas as tabelas
 ALTER TABLE public.stores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inventory_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ph_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inventory_movements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.maintenance_records ENABLE ROW LEVEL SECURITY;
 
 -- Remover políticas antigas para evitar erros de duplicidade ao re-executar
 DROP POLICY IF EXISTS "Permitir tudo para todos" ON public.stores;
@@ -74,13 +88,15 @@ DROP POLICY IF EXISTS "Permitir tudo para todos" ON public.inventory_items;
 DROP POLICY IF EXISTS "Permitir tudo para todos" ON public.transactions;
 DROP POLICY IF EXISTS "Permitir tudo para todos" ON public.ph_records;
 DROP POLICY IF EXISTS "Permitir tudo para todos" ON public.inventory_movements;
+DROP POLICY IF EXISTS "Permitir tudo para todos" ON public.maintenance_records;
 
 -- Criar Políticas de Acesso Público (Necessário para o funcionamento via Anon Key sem Auth)
 CREATE POLICY "Permitir tudo para todos" ON public.stores FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Permitir tudo para todos" ON public.inventory_items FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Permitir tudo para todos" ON public.transactions FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Permitir tudo para todos" ON public.ph_records FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Permitir tudo para todos" ON public.inventory_movements FOR ALL USING (true) WITH CHECK (true);`;
+CREATE POLICY "Permitir tudo para todos" ON public.inventory_movements FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Permitir tudo para todos" ON public.maintenance_records FOR ALL USING (true) WITH CHECK (true);`;
 
 const DatabaseSetupView: React.FC = () => {
   const [copied, setCopied] = useState(false);

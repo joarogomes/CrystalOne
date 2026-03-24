@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { BusinessState, Transaction, PHRecord } from '../types';
 import AIAdvisor from './AIAdvisor';
 import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { 
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   AreaChart, Area, ReferenceArea, Label, Brush
@@ -257,10 +258,95 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
     setIsExporting(true);
     try {
       const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      
+      // Header
       doc.setFont("helvetica", "bold");
       doc.setFontSize(22);
       doc.setTextColor(37, 99, 235);
-      doc.text("CRYSTALONE - MANAGEMENT SYSTEM", 105, 20, { align: "center" });
+      doc.text(storeName.toUpperCase(), pageWidth / 2, 20, { align: "center" });
+      
+      doc.setFontSize(10);
+      doc.setTextColor(100, 116, 139);
+      doc.text("RELATÓRIO DE DESEMPENHO FINANCEIRO", pageWidth / 2, 28, { align: "center" });
+      doc.text(`Gerado em: ${new Date().toLocaleString()}`, pageWidth / 2, 34, { align: "center" });
+
+      // 1. Resumo Financeiro
+      doc.setFontSize(14);
+      doc.setTextColor(30, 41, 59);
+      doc.text("1. RESUMO FINANCEIRO", 14, 45);
+      
+      const summaryData = [
+        ["Faturamento Total", `${totalSales.toLocaleString()} Kz`],
+        ["Custos Totais (Saídas + Investimentos)", `${totalOut.toLocaleString()} Kz`],
+        ["Saldo Líquido", `${(totalSales - totalOut).toLocaleString()} Kz`]
+      ];
+
+      autoTable(doc, {
+        startY: 50,
+        head: [['Descrição', 'Valor']],
+        body: summaryData,
+        theme: 'striped',
+        headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255] },
+        styles: { font: 'helvetica', fontSize: 10 }
+      });
+
+      // 2. Vendas por Produto
+      const nextY = (doc as any).lastAutoTable.finalY + 15;
+      doc.text("2. VENDAS POR PRODUTO", 14, nextY);
+
+      const productSalesData = salesByProduct.map(p => [
+        p.category,
+        p.quantity.toString(),
+        `${p.total.toLocaleString()} Kz`
+      ]);
+
+      autoTable(doc, {
+        startY: nextY + 5,
+        head: [['Produto', 'Quantidade', 'Total']],
+        body: productSalesData,
+        theme: 'grid',
+        headStyles: { fillColor: [16, 185, 129], textColor: [255, 255, 255] },
+        styles: { font: 'helvetica', fontSize: 10 }
+      });
+
+      // 3. Vendas por Método de Pagamento
+      const nextY2 = (doc as any).lastAutoTable.finalY + 15;
+      doc.text("3. VENDAS POR MÉTODO DE PAGAMENTO", 14, nextY2);
+
+      const paymentMethodsData: Record<string, { Consolidada: number, Express: number, TPA: number, total: number }> = {};
+      
+      state.transactions
+        .filter(t => t.type === 'sale')
+        .forEach(t => {
+          const cat = t.category || 'Outros';
+          if (!paymentMethodsData[cat]) {
+            paymentMethodsData[cat] = { Consolidada: 0, Express: 0, TPA: 0, total: 0 };
+          }
+          const method = t.payment_method || 'Consolidada';
+          if (method === 'Consolidada') paymentMethodsData[cat].Consolidada += t.amount;
+          else if (method === 'Express') paymentMethodsData[cat].Express += t.amount;
+          else if (method === 'TPA') paymentMethodsData[cat].TPA += t.amount;
+          paymentMethodsData[cat].total += t.amount;
+        });
+
+      const paymentTableBody = Object.entries(paymentMethodsData).map(([cat, data]) => [
+        cat,
+        `${data.Consolidada.toLocaleString()} Kz`,
+        `${data.Express.toLocaleString()} Kz`,
+        `${data.TPA.toLocaleString()} Kz`,
+        `${data.total.toLocaleString()} Kz`
+      ]);
+
+      autoTable(doc, {
+        startY: nextY2 + 5,
+        head: [['Produto', 'Consolidada', 'Express', 'TPA', 'Total']],
+        body: paymentTableBody,
+        theme: 'striped',
+        headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255] },
+        styles: { font: 'helvetica', fontSize: 9 }
+      });
+
       doc.save(`Relatorio_CrystalOne_${new Date().toISOString().split('T')[0]}.pdf`);
     } catch (error) {
       console.error("Erro ao gerar PDF:", error);

@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Transaction, TransactionType, AccessLevel } from '../types';
+import { Transaction, TransactionType, AccessLevel, PaymentMethod } from '../types';
 import { Plus, X, Calendar, TrendingDown, Landmark, Info, ChevronLeft, ChevronRight, Edit3, List, ShoppingCart, PieChart as PieIcon, TrendingUp } from 'lucide-react';
 import { SALE_CATEGORIES, EXPENSE_CATEGORIES, INVESTMENT_CATEGORIES, QUICK_SALE_ITEMS } from '../constants';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
@@ -29,6 +29,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
   const [unitPrice, setUnitPrice] = useState('');
   const [subType, setSubType] = useState<'expense' | 'investment'>(type === 'sale' ? 'expense' : type as any);
   const [category, setCategory] = useState(type === 'sale' ? SALE_CATEGORIES[0] : '');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Consolidada');
   const [quantity, setQuantity] = useState('1');
   const [customCategory, setCustomCategory] = useState('');
   const [isCustomCategory, setIsCustomCategory] = useState(false);
@@ -100,8 +101,9 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
       type: activeType as TransactionType,
       category: finalCategory,
       amount: parseFloat(amount),
-      description: activeType === 'sale' ? (description || 'Venda consolidada do dia') : description,
+      description: activeType === 'sale' ? (description || `Venda ${paymentMethod}`) : description,
       quantity: parseInt(quantity) || 1,
+      payment_method: activeType === 'sale' ? paymentMethod : undefined,
       created_at: createdAt
     });
 
@@ -607,6 +609,28 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
                   </select>
                 )}
               </div>
+
+              {activeType === 'sale' && (
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] px-2">Método de Pagamento</label>
+                  <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl">
+                    {(['Consolidada', 'Express', 'TPA'] as PaymentMethod[]).map((method) => (
+                      <button
+                        key={method}
+                        type="button"
+                        onClick={() => setPaymentMethod(method)}
+                        className={`flex-1 py-3 px-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                          paymentMethod === method 
+                            ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' 
+                            : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
+                        }`}
+                      >
+                        {method}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-3">

@@ -1,5 +1,6 @@
 
 export type TransactionType = 'sale' | 'expense' | 'investment';
+export type PaymentMethod = 'Express' | 'Consolidada' | 'TPA';
 
 export interface Transaction {
   id: string;
@@ -9,6 +10,7 @@ export interface Transaction {
   amount: number;
   description: string;
   quantity: number;
+  payment_method?: PaymentMethod;
   created_at: string;
 }
 

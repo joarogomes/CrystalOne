@@ -198,10 +198,17 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddMaintena
     return { avg, max, min, stability };
   }, [filteredPhRecords]);
 
+  const filteredTransactionsList = useMemo(() => {
+    return state.transactions
+      .filter(t => filterType === 'all' || t.type === filterType)
+      .filter(t => !selectedProduct || t.category.toLowerCase().includes(selectedProduct.toLowerCase()))
+      .filter(t => paymentMethodFilter === 'all' || t.payment_method === paymentMethodFilter);
+  }, [state.transactions, filterType, selectedProduct, paymentMethodFilter]);
+
   const salesByProduct = useMemo(() => {
     const products: Record<string, { category: string, quantity: number, total: number }> = {};
     
-    state.transactions
+    filteredTransactionsList
       .filter(t => t.type === 'sale')
       .forEach(t => {
         const cat = t.category || 'Sem Categoria';
@@ -213,9 +220,8 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddMaintena
       });
       
     return Object.values(products)
-      .filter(p => p.category.toLowerCase().includes(selectedProduct.toLowerCase()))
       .sort((a, b) => b.quantity - a.quantity);
-  }, [state.transactions, selectedProduct]);
+  }, [filteredTransactionsList]);
 
   const groupedTransactions = useMemo(() => {
     const groups: Record<string, { 
@@ -228,11 +234,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddMaintena
       items: Transaction[] 
     }> = {};
 
-    state.transactions
-      .filter(t => filterType === 'all' || t.type === filterType)
-      .filter(t => !selectedProduct || t.category.toLowerCase().includes(selectedProduct.toLowerCase()))
-      .filter(t => paymentMethodFilter === 'all' || t.payment_method === paymentMethodFilter)
-      .forEach(t => {
+    filteredTransactionsList.forEach(t => {
         const dateKey = getLocalDateString(new Date(t.created_at));
         if (!groups[dateKey]) { 
           groups[dateKey] = { date: dateKey, sales: 0, expenses: 0, investments: 0, count: 0, quantity: 0, items: [] }; 
@@ -248,10 +250,10 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddMaintena
       });
 
     return Object.values(groups).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [state.transactions, filterType, selectedProduct]);
+  }, [filteredTransactionsList]);
 
-  const totalSales = useMemo(() => state.transactions.filter(t => t.type === 'sale').reduce((s,t) => s+t.amount, 0), [state.transactions]);
-  const totalOut = useMemo(() => state.transactions.filter(t => t.type !== 'sale').reduce((s,t) => s+t.amount, 0), [state.transactions]);
+  const totalSales = useMemo(() => filteredTransactionsList.filter(t => t.type === 'sale').reduce((s,t) => s+t.amount, 0), [filteredTransactionsList]);
+  const totalOut = useMemo(() => filteredTransactionsList.filter(t => t.type !== 'sale').reduce((s,t) => s+t.amount, 0), [filteredTransactionsList]);
 
   const handlePHSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -710,7 +712,14 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddMaintena
                               </div>
                               <div className="flex flex-col">
                                 <span className="font-black text-slate-800 dark:text-slate-200 text-sm md:text-base mb-0.5 md:mb-1">{t.category}</span>
-                                <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">{new Date(t.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">{new Date(t.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                  {t.payment_method && (
+                                    <span className="text-[8px] font-black text-blue-500 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 px-1.5 py-0.5 rounded uppercase tracking-tighter">
+                                      {t.payment_method}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                             <span className={`font-black text-sm md:text-lg ${

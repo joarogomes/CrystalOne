@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { BusinessState, Transaction, PHRecord } from '../types';
+import { BusinessState, Transaction, PHRecord, MaintenanceRecord, MaintenanceArea, MaintenanceType } from '../types';
 import AIAdvisor from './AIAdvisor';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -36,6 +36,7 @@ import { AccessLevel } from '../types';
 interface ReportsViewProps {
   state: BusinessState;
   onAddPH: (value: number) => void;
+  onAddMaintenance: (maint: Omit<MaintenanceRecord, 'id' | 'store_id' | 'created_at'>) => void;
   storeName?: string;
   accessLevel?: AccessLevel;
   initialTab?: ReportTab;
@@ -125,19 +126,27 @@ const getLocalDateString = (date: Date = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
-const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "CrystalOne", accessLevel = 'full', initialTab }) => {
+const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddMaintenance, storeName = "CrystalOne", accessLevel = 'full', initialTab }) => {
   const [activeTab, setActiveTab] = useState<ReportTab>(() => {
     if (initialTab) return initialTab;
     if (accessLevel === 'operational') return 'quality';
     return (localStorage.getItem('reports_active_tab') as any) || 'transactions';
   });
   const [filterType, setFilterType] = useState<'all' | 'sale' | 'expense' | 'investment'>('all');
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<'all' | 'Consolidada' | 'Express' | 'TPA'>('all');
   const [financeViewMode, setFinanceViewMode] = useState<'history' | 'products'>('history');
   const [selectedProduct, setSelectedProduct] = useState('');
   const [phValue, setPhValue] = useState('');
   const [showPHForm, setShowPHForm] = useState(false);
+  const [showMaintForm, setShowMaintForm] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [qualityDate, setQualityDate] = useState(getLocalDateString());
+
+  // Maintenance Form State
+  const [maintDate, setMaintDate] = useState(getLocalDateString());
+  const [maintType, setMaintType] = useState<MaintenanceType>('Preventiva');
+  const [maintArea, setMaintArea] = useState<MaintenanceArea>('Filtros Pré-tratamento');
+  const [maintDesc, setMaintDesc] = useState('');
   
   // State for expanded transaction dates
   const [expandedDates, setExpandedDates] = useState<Record<string, boolean>>(() => {
@@ -222,6 +231,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
     state.transactions
       .filter(t => filterType === 'all' || t.type === filterType)
       .filter(t => !selectedProduct || t.category.toLowerCase().includes(selectedProduct.toLowerCase()))
+      .filter(t => paymentMethodFilter === 'all' || t.payment_method === paymentMethodFilter)
       .forEach(t => {
         const dateKey = getLocalDateString(new Date(t.created_at));
         if (!groups[dateKey]) { 
@@ -252,6 +262,18 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
       setShowPHForm(false);
       setQualityDate(new Date().toISOString().split('T')[0]);
     }
+  };
+
+  const handleMaintSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onAddMaintenance({
+      date: maintDate,
+      type: maintType,
+      area: maintArea,
+      description: maintDesc
+    });
+    setMaintDesc('');
+    setShowMaintForm(false);
   };
 
   const handleExportPDF = async () => {
@@ -575,6 +597,19 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
                   </button>
                 )}
               </div>
+
+              <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mr-2">Método de Pagamento:</span>
+                {(['all', 'Consolidada', 'Express', 'TPA'] as const).map(method => (
+                  <button 
+                    key={method}
+                    onClick={() => setPaymentMethodFilter(method)}
+                    className={`px-4 py-2 rounded-full text-[9px] font-black uppercase transition-all border ${paymentMethodFilter === method ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-800'}`}
+                  >
+                    {method === 'all' ? 'Todos' : method}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {financeViewMode === 'history' ? (
@@ -852,23 +887,123 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, storeName = "
                       <h3 className="text-lg md:text-xl font-black mb-1 md:mb-2">Registrar pH</h3>
                       <p className="text-[9px] md:text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Validar pureza do lote atual.</p>
                    </button>
+
+                   <button 
+                      onClick={() => setShowMaintForm(true)}
+                      className="w-full bg-blue-600 dark:bg-blue-700 p-8 md:p-10 rounded-[32px] md:rounded-[44px] shadow-2xl text-left text-white group hover:scale-[1.02] transition-transform active:scale-95 border border-white/5 dark:border-slate-800/50"
+                    >
+                      <div className="flex items-center justify-between mb-3 md:mb-4">
+                         <span className="text-[10px] font-black text-blue-100 uppercase tracking-widest opacity-60">Manutenção</span>
+                         <Plus size={20} className="text-white group-hover:rotate-90 transition-transform" />
+                      </div>
+                      <h3 className="text-lg md:text-xl font-black mb-1 md:mb-2">Registrar Manutenção</h3>
+                      <p className="text-[9px] md:text-[10px] text-blue-100 font-bold uppercase tracking-widest">Controle preventivo do sistema.</p>
+                   </button>
                 </div>
               </div>
             </div>
 
-            {showPHForm && (
-              <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-6">
-                <div className="absolute inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-xl" onClick={() => setShowPHForm(false)} />
-                <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-[40px] md:rounded-[64px] p-8 md:p-16 shadow-2xl animate-premium text-center border border-white/40 dark:border-slate-800/40">
-                  <div className="flex justify-between items-center mb-8 md:mb-10">
-                     <h3 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-slate-100">Nova Medição</h3>
-                     <button onClick={() => setShowPHForm(false)} className="text-slate-300 dark:text-slate-600 p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full transition-all"><X size={28} /></button>
+            {/* Maintenance Records List */}
+            <div className="space-y-6">
+              <div className="flex items-center justify-between px-4">
+                <div className="flex flex-col">
+                  <h3 className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Histórico de Manutenções</h3>
+                  <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Registros de intervenções técnicas</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                {(state.maintenanceRecords || []).map((m) => (
+                  <div key={m.id} className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all group border-l-8 border-l-blue-500">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex flex-col">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{new Date(m.date + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                        <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mt-1">{m.type}</span>
+                      </div>
+                      <div className="p-2 bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 rounded-xl">
+                        <ShieldCheck size={18} />
+                      </div>
+                    </div>
+                    <h4 className="text-base font-black text-slate-900 dark:text-slate-100 mb-2">{m.area}</h4>
+                    {m.description && (
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed italic">
+                        "{m.description}"
+                      </p>
+                    )}
                   </div>
-                  <form onSubmit={handlePHSubmit} className="space-y-8 md:space-y-12">
-                     <input type="number" step="0.1" value={phValue} onChange={e => setPhValue(e.target.value)} placeholder="7.0" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-[32px] md:rounded-[40px] py-10 md:py-16 text-6xl md:text-8xl font-black text-center text-slate-900 dark:text-slate-100 focus:ring-8 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:outline-none" autoFocus required />
-                     <button type="submit" className="w-full bg-blue-600 text-white font-black py-5 md:py-7 rounded-[24px] md:rounded-[32px] shadow-2xl transition-all text-sm tracking-widest active:scale-95">
-                       CONFIRMAR PUREZA
-                     </button>
+                ))}
+                {(state.maintenanceRecords || []).length === 0 && (
+                  <div className="col-span-full py-16 text-center bg-white dark:bg-slate-900 rounded-[32px] border border-dashed border-slate-200 dark:border-slate-800">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nenhuma manutenção registrada</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {showMaintForm && (
+              <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-6">
+                <div className="absolute inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-xl" onClick={() => setShowMaintForm(false)} />
+                <div className="relative bg-white dark:bg-slate-900 w-full max-w-xl rounded-[40px] md:rounded-[64px] p-8 md:p-12 shadow-2xl animate-premium border border-white/40 dark:border-slate-800/40">
+                  <div className="flex justify-between items-center mb-8">
+                     <h3 className="text-2xl font-black text-slate-900 dark:text-slate-100">Registrar Manutenção</h3>
+                     <button onClick={() => setShowMaintForm(false)} className="text-slate-300 dark:text-slate-600 p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full transition-all"><X size={28} /></button>
+                  </div>
+                  <form onSubmit={handleMaintSubmit} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Data</label>
+                        <input 
+                          type="date" 
+                          value={maintDate} 
+                          onChange={e => setMaintDate(e.target.value)} 
+                          className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-4 text-sm font-bold text-slate-900 dark:text-slate-100 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:outline-none" 
+                          required 
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Tipo</label>
+                        <select 
+                          value={maintType} 
+                          onChange={e => setMaintType(e.target.value as MaintenanceType)} 
+                          className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-4 text-sm font-bold text-slate-900 dark:text-slate-100 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:outline-none" 
+                        >
+                          <option value="Preventiva">Preventiva</option>
+                          <option value="Corretiva">Corretiva</option>
+                          <option value="Limpeza">Limpeza</option>
+                          <option value="Troca de Componente">Troca de Componente</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Área da Manutenção</label>
+                      <div className="grid grid-cols-2 gap-3">
+                        {(['Filtros Pré-tratamento', 'Filtros Pós Tratamento', 'Osmose', 'UV'] as MaintenanceArea[]).map(area => (
+                          <button
+                            key={area}
+                            type="button"
+                            onClick={() => setMaintArea(area)}
+                            className={`p-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${maintArea === area ? 'bg-blue-600 text-white border-blue-600 shadow-lg' : 'bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-100 dark:border-slate-700 hover:border-blue-200'}`}
+                          >
+                            {area}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Descrição (Opcional)</label>
+                      <textarea 
+                        value={maintDesc} 
+                        onChange={e => setMaintDesc(e.target.value)} 
+                        placeholder="Detalhes da intervenção..." 
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-4 text-sm font-bold text-slate-900 dark:text-slate-100 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:outline-none min-h-[100px]" 
+                      />
+                    </div>
+
+                    <button type="submit" className="w-full bg-blue-600 text-white font-black py-5 rounded-[24px] shadow-2xl transition-all text-sm tracking-widest active:scale-95">
+                      SALVAR REGISTRO
+                    </button>
                   </form>
                 </div>
               </div>

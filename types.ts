@@ -41,6 +41,19 @@ export interface PHRecord {
   created_at: string;
 }
 
+export type MaintenanceArea = 'Filtros Pré-tratamento' | 'Filtros Pós Tratamento' | 'Osmose' | 'UV';
+export type MaintenanceType = 'Preventiva' | 'Corretiva' | 'Limpeza' | 'Troca de Componente';
+
+export interface MaintenanceRecord {
+  id: string;
+  store_id: string;
+  date: string;
+  type: MaintenanceType;
+  area: MaintenanceArea;
+  description: string;
+  created_at: string;
+}
+
 export interface AppNotification {
   id: string;
   store_id: string;
@@ -56,6 +69,7 @@ export interface BusinessState {
   inventory: InventoryItem[];
   inventoryMovements: InventoryMovement[];
   phRecords: PHRecord[];
+  maintenanceRecords: MaintenanceRecord[];
 }
 
 export interface Store {

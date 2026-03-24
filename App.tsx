@@ -8,7 +8,7 @@ import ReportsView from './components/ReportsView';
 import NotificationToast from './components/NotificationToast';
 import LoginPin from './components/LoginPin';
 import DatabaseSetupView from './components/DatabaseSetupView';
-import { BusinessState, ViewType, Transaction, InventoryItem, InventoryMovement, Store, AppNotification, PHRecord, AccessLevel } from './types';
+import { BusinessState, ViewType, Transaction, InventoryItem, InventoryMovement, Store, AppNotification, PHRecord, AccessLevel, MaintenanceRecord } from './types';
 import { INITIAL_INVENTORY } from './constants';
 import { supabase } from './services/supabase';
 
@@ -28,6 +28,7 @@ const App: React.FC = () => {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [inventoryMovements, setInventoryMovements] = useState<InventoryMovement[]>([]);
   const [phRecords, setPhRecords] = useState<PHRecord[]>([]);
+  const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([]);
   const [isTestingDb, setIsTestingDb] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return localStorage.getItem('crystalone_theme') === 'dark';
@@ -137,17 +138,19 @@ const App: React.FC = () => {
 
     const loadData = async () => {
       try {
-        const [tRes, iRes, phRes, mRes] = await Promise.all([
+        const [tRes, iRes, phRes, mRes, maintRes] = await Promise.all([
           supabase.from('transactions').select('*').eq('store_id', activeStoreId).order('created_at', { ascending: false }),
           supabase.from('inventory_items').select('*').eq('store_id', activeStoreId).order('name'),
           supabase.from('ph_records').select('*').eq('store_id', activeStoreId).order('created_at', { ascending: false }),
-          supabase.from('inventory_movements').select('*').order('created_at', { ascending: false })
+          supabase.from('inventory_movements').select('*').order('created_at', { ascending: false }),
+          supabase.from('maintenance_records').select('*').eq('store_id', activeStoreId).order('date', { ascending: false })
         ]);
 
         setTransactions(tRes.data || []);
         setInventory(iRes.data || []);
         setPhRecords(phRes.data || []);
         setInventoryMovements(mRes.data || []);
+        setMaintenanceRecords(maintRes.data || []);
       } catch (err) {
         console.error("Erro ao carregar dados da unidade:", err);
       }
@@ -295,6 +298,29 @@ const App: React.FC = () => {
     } catch (err) {}
   };
 
+  const handleAddMaintenance = async (maint: Omit<MaintenanceRecord, 'id' | 'store_id' | 'created_at'>) => {
+    try {
+      const { data } = await supabase.from('maintenance_records').insert([{
+        ...maint,
+        store_id: activeStoreId
+      }]).select().single();
+      if (data) {
+        setMaintenanceRecords(prev => [data, ...prev]);
+        setToast({
+          id: crypto.randomUUID(),
+          store_id: activeStoreId || '',
+          title: 'Manutenção Registrada',
+          message: `Registro de ${maint.type} em ${maint.area} salvo com sucesso.`,
+          type: 'info',
+          read: false,
+          created_at: new Date().toISOString()
+        });
+      }
+    } catch (err) {
+      console.error("Erro ao salvar manutenção:", err);
+    }
+  };
+
   const handleAddInventoryItem = async (newItem: Omit<InventoryItem, 'id' | 'store_id' | 'created_at'>) => {
     try {
       const { data } = await supabase
@@ -374,7 +400,7 @@ const App: React.FC = () => {
       <div className="pb-8">
         {activeView === 'dashboard' && (
           <Dashboard 
-            state={{ transactions, inventory, inventoryMovements, phRecords }} 
+            state={{ transactions, inventory, inventoryMovements, phRecords, maintenanceRecords }} 
             onQuickSell={(itemId) => handleUpdateInventory(itemId, -1)}
             accessLevel={accessLevel}
           />
@@ -384,16 +410,18 @@ const App: React.FC = () => {
         {activeView === 'inventory' && <InventoryView inventory={inventory} movements={inventoryMovements} onUpdate={handleUpdateInventory} onAddItem={handleAddInventoryItem} />}
         {activeView === 'reports' && (
           <ReportsView 
-            state={{ transactions, inventory, inventoryMovements, phRecords }} 
+            state={{ transactions, inventory, inventoryMovements, phRecords, maintenanceRecords }} 
             onAddPH={handleAddPHRecord} 
+            onAddMaintenance={handleAddMaintenance}
             storeName={stores.find(s => s.id === activeStoreId)?.name} 
             accessLevel={accessLevel}
           />
         )}
         {activeView === 'quality' && (
           <ReportsView 
-            state={{ transactions, inventory, inventoryMovements, phRecords }} 
+            state={{ transactions, inventory, inventoryMovements, phRecords, maintenanceRecords }} 
             onAddPH={handleAddPHRecord} 
+            onAddMaintenance={handleAddMaintenance}
             storeName={stores.find(s => s.id === activeStoreId)?.name} 
             accessLevel={accessLevel}
             initialTab="quality"

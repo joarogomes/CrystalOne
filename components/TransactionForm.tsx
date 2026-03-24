@@ -36,6 +36,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
   const [description, setDescription] = useState('');
   const [selectedDate, setSelectedDate] = useState(getLocalDateString());
   const [salesTimeFilter, setSalesTimeFilter] = useState<'day' | 'week' | 'month'>('day');
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<PaymentMethod | 'Todos'>('Todos');
 
   const activeType = type === 'sale' ? 'sale' : subType;
   const categories = activeType === 'sale' ? SALE_CATEGORIES : 
@@ -206,6 +207,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
     transactions
       .filter(t => t.type === 'sale')
       .filter(t => getLocalDateString(new Date(t.created_at)) === selectedDate)
+      .filter(t => paymentMethodFilter === 'Todos' || t.payment_method === paymentMethodFilter)
       .forEach(t => {
         /* Fix: changed t.date to t.created_at */
         const dateStr = new Date(t.created_at).toLocaleDateString('pt-BR');
@@ -280,43 +282,61 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
         </div>
 
         {type === 'sale' && (
-          <div className="glass-card p-4 rounded-[32px] flex items-center justify-between shadow-sm bg-white/60 dark:bg-slate-900/60 border border-white dark:border-slate-800">
-            <button 
-              onClick={() => changeDate(-1)} 
-              disabled={isAtMinDate}
-              className={`p-3 transition-all rounded-2xl ${isAtMinDate ? 'opacity-10 cursor-not-allowed' : 'text-slate-400 hover:text-blue-600 hover:bg-white dark:hover:bg-slate-800'}`}
-            >
-              <ChevronLeft size={20} />
-            </button>
-            <div className="flex flex-col items-center">
-              <input 
-                type="date" 
-                value={selectedDate} 
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const today = getLocalDateString();
-                  const minDate = new Date();
-                  const limit = accessLevel === 'full' ? 14 : 0;
-                  minDate.setDate(minDate.getDate() - limit);
-                  const minDateStr = getLocalDateString(minDate);
-                  
-                  if (val > today) return;
-                  if (val < minDateStr) return;
-                  setSelectedDate(val);
-                }}
-                className="text-sm font-black text-slate-900 dark:text-slate-100 bg-transparent cursor-pointer text-center focus:outline-none"
-              />
-              <span className="text-[9px] text-blue-600 dark:text-blue-400 font-black uppercase tracking-[0.2em] mt-1">
-                {isToday ? 'Hoje' : new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long' })}
-              </span>
+          <div className="flex flex-col gap-3">
+            <div className="glass-card p-4 rounded-[32px] flex items-center justify-between shadow-sm bg-white/60 dark:bg-slate-900/60 border border-white dark:border-slate-800">
+              <button 
+                onClick={() => changeDate(-1)} 
+                disabled={isAtMinDate}
+                className={`p-3 transition-all rounded-2xl ${isAtMinDate ? 'opacity-10 cursor-not-allowed' : 'text-slate-400 hover:text-blue-600 hover:bg-white dark:hover:bg-slate-800'}`}
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <div className="flex flex-col items-center">
+                <input 
+                  type="date" 
+                  value={selectedDate} 
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const today = getLocalDateString();
+                    const minDate = new Date();
+                    const limit = accessLevel === 'full' ? 14 : 0;
+                    minDate.setDate(minDate.getDate() - limit);
+                    const minDateStr = getLocalDateString(minDate);
+                    
+                    if (val > today) return;
+                    if (val < minDateStr) return;
+                    setSelectedDate(val);
+                  }}
+                  className="text-sm font-black text-slate-900 dark:text-slate-100 bg-transparent cursor-pointer text-center focus:outline-none"
+                />
+                <span className="text-[9px] text-blue-600 dark:text-blue-400 font-black uppercase tracking-[0.2em] mt-1">
+                  {isToday ? 'Hoje' : new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long' })}
+                </span>
+              </div>
+              <button 
+                onClick={() => changeDate(1)} 
+                disabled={isToday}
+                className={`p-3 transition-all rounded-2xl ${isToday ? 'opacity-10 cursor-not-allowed' : 'text-slate-400 hover:text-blue-600 hover:bg-white dark:hover:bg-slate-800'}`}
+              >
+                <ChevronRight size={20} />
+              </button>
             </div>
-            <button 
-              onClick={() => changeDate(1)} 
-              disabled={isToday}
-              className={`p-3 transition-all rounded-2xl ${isToday ? 'opacity-10 cursor-not-allowed' : 'text-slate-400 hover:text-blue-600 hover:bg-white dark:hover:bg-slate-800'}`}
-            >
-              <ChevronRight size={20} />
-            </button>
+
+            <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-[24px] overflow-x-auto no-scrollbar">
+              {(['Todos', 'Consolidada', 'Express', 'TPA'] as const).map((method) => (
+                <button
+                  key={method}
+                  onClick={() => setPaymentMethodFilter(method)}
+                  className={`flex-1 py-2.5 px-4 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                    paymentMethodFilter === method 
+                      ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' 
+                      : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
+                  }`}
+                >
+                  {method}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 

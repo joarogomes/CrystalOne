@@ -533,8 +533,26 @@ const App: React.FC = () => {
             accessLevel={accessLevel}
           />
         )}
-        {activeView === 'sales' && <TransactionForm type="sale" onAdd={handleAddTransaction} transactions={transactions} accessLevel={accessLevel} />}
-        {activeView === 'expenses' && <TransactionForm type="expense" onAdd={handleAddTransaction} transactions={transactions} accessLevel={accessLevel} />}
+        {activeView === 'sales' && (
+          <TransactionForm 
+            type="sale" 
+            onAdd={handleAddTransaction} 
+            transactions={transactions} 
+            accessLevel={accessLevel} 
+            phRecords={phRecords}
+            storeName={stores.find(s => s.id === activeStoreId)?.name}
+          />
+        )}
+        {activeView === 'expenses' && (
+          <TransactionForm 
+            type="expense" 
+            onAdd={handleAddTransaction} 
+            transactions={transactions} 
+            accessLevel={accessLevel} 
+            phRecords={phRecords}
+            storeName={stores.find(s => s.id === activeStoreId)?.name}
+          />
+        )}
         {activeView === 'inventory' && <InventoryView inventory={inventory} movements={inventoryMovements} onUpdate={handleUpdateInventory} onAddItem={handleAddInventoryItem} />}
         {activeView === 'reports' && (
           <ReportsView 

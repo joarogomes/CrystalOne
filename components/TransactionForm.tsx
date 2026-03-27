@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Transaction, TransactionType, AccessLevel, PaymentMethod } from '../types';
 import { Plus, X, Calendar, TrendingDown, Landmark, Info, ChevronLeft, ChevronRight, Edit3, List, ShoppingCart, PieChart as PieIcon, TrendingUp } from 'lucide-react';
 import { SALE_CATEGORIES, EXPENSE_CATEGORIES, INVESTMENT_CATEGORIES, QUICK_SALE_ITEMS } from '../constants';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar, ComposedChart, Line } from 'recharts';
 import { Zap } from 'lucide-react';
 
 interface TransactionFormProps {
@@ -37,6 +37,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
   const [selectedDate, setSelectedDate] = useState(getLocalDateString());
   const [salesTimeFilter, setSalesTimeFilter] = useState<'day' | 'week' | 'month'>('day');
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<PaymentMethod | 'Todos'>('Todos');
+  const chartContainerRef = React.useRef<HTMLDivElement>(null);
 
   const activeType = type === 'sale' ? 'sale' : subType;
   const categories = activeType === 'sale' ? SALE_CATEGORIES : 
@@ -232,44 +233,82 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
         groups[dateStr].count += 1;
       });
     return Object.entries(groups).sort((a, b) => new Date(b[1].date).getTime() - new Date(a[1].date).getTime());
-  }, [transactions, type, selectedDate]);
+  }, [transactions, type, selectedDate, paymentMethodFilter]);
 
   const filteredTransactions = transactions.filter(t => t.type === activeType).reverse();
 
   const salesChartData = useMemo(() => {
     if (type !== 'sale') return [];
-    const sales = transactions.filter(t => t.type === 'sale');
-    const groups: Record<string, { amount: number, quantity: number }> = {};
+    const sales = transactions
+      .filter(t => t.type === 'sale')
+      .filter(t => paymentMethodFilter === 'Todos' || t.payment_method === paymentMethodFilter);
+    
+    const groups: Record<string, { amount: number, quantity: number, timestamp: number, name: string }> = {};
+
+    // Ensure we have at least the last 10 days if filter is 'day'
+    if (salesTimeFilter === 'day') {
+      const today = new Date();
+      for (let i = 14; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(today.getDate() - i);
+        d.setHours(0, 0, 0, 0);
+        const key = d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
+        groups[key] = { 
+          amount: 0, 
+          quantity: 0, 
+          timestamp: d.getTime(),
+          name: key
+        };
+      }
+    }
 
     sales.forEach(t => {
       const date = new Date(t.created_at);
       let key = '';
+      let sortKey = 0;
       
       if (salesTimeFilter === 'day') {
-        key = date.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
+        const d = new Date(date);
+        d.setHours(0,0,0,0);
+        sortKey = d.getTime();
+        key = d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
       } else if (salesTimeFilter === 'week') {
-        const firstDay = new Date(date.setDate(date.getDate() - date.getDay()));
+        const firstDay = new Date(date);
+        firstDay.setDate(date.getDate() - date.getDay());
+        firstDay.setHours(0,0,0,0);
+        sortKey = firstDay.getTime();
         key = `Sem. ${firstDay.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' })}`;
       } else {
+        const firstOfMonth = new Date(date.getFullYear(), date.getMonth(), 1);
+        sortKey = firstOfMonth.getTime();
         key = date.toLocaleDateString('pt-PT', { month: 'short', year: '2-digit' });
       }
 
-      if (!groups[key]) groups[key] = { amount: 0, quantity: 0 };
+      if (!groups[key]) {
+        groups[key] = { amount: 0, quantity: 0, timestamp: sortKey, name: key };
+      }
       groups[key].amount += t.amount;
       groups[key].quantity += (t.quantity || 1);
     });
 
-    return Object.entries(groups)
-      .map(([name, data]) => {
-        let color = '#2563eb'; // Azul padrão se não houver vendas
-        if (data.amount <= 17000) color = '#ef4444'; // Vermelho para vendas baixas
+    return Object.values(groups)
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .map((data) => {
+        let color = '#2563eb'; // Azul padrão
+        if (data.amount === 0) color = '#e2e8f0'; // Cinza para sem vendas
+        else if (data.amount <= 17000) color = '#ef4444'; // Vermelho para vendas baixas
         else if (data.amount <= 25000) color = '#f59e0b'; // Amarelo para vendas médias
         else color = '#10b981'; // Verde para vendas altas
 
-        return { name, value: data.amount, color };
-      })
-      .slice(-12); // Last 12 periods
-  }, [transactions, salesTimeFilter, type]);
+        return { name: data.name, value: data.amount, color };
+      });
+  }, [transactions, salesTimeFilter, type, paymentMethodFilter]);
+
+  useEffect(() => {
+    if (chartContainerRef.current && salesChartData.length > 0) {
+      chartContainerRef.current.scrollLeft = chartContainerRef.current.scrollWidth;
+    }
+  }, [salesChartData]);
 
   const toggleCategoryMode = () => {
     setIsCustomCategory(!isCustomCategory);
@@ -403,49 +442,59 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
               </div>
             </div>
 
-            <div className="h-[300px] md:h-[400px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={salesChartData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis 
-                    dataKey="name" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 800 }} 
-                    dy={10}
-                  />
-                  <YAxis 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 800 }}
-                    tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-                  />
-                  <Tooltip 
-                    cursor={{ fill: '#f8fafc', opacity: 0.4 }}
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const data = payload[0].payload;
-                        return (
-                          <div className="bg-slate-900 p-4 rounded-2xl shadow-2xl border border-white/10 animate-premium">
-                            <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">{data.name}</p>
-                            <p className="text-lg font-black text-white">{data.value?.toLocaleString()} Kz</p>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                  <Bar 
-                    dataKey="value" 
-                    radius={[8, 8, 0, 0]} 
-                    barSize={salesTimeFilter === 'day' ? 20 : 40}
-                  >
-                    {salesChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+            <div ref={chartContainerRef} className="h-[300px] md:h-[400px] w-full overflow-x-auto scrollbar-hide scroll-smooth">
+              <div style={{ minWidth: salesChartData.length > 8 ? `${salesChartData.length * 60}px` : '100%', height: '100%' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={salesChartData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis 
+                      dataKey="name" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 800 }} 
+                      dy={10}
+                    />
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 800 }}
+                      tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                    />
+                    <Tooltip 
+                      cursor={{ fill: '#f8fafc', opacity: 0.4 }}
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          return (
+                            <div className="bg-slate-900 p-4 rounded-2xl shadow-2xl border border-white/10 animate-premium">
+                              <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">{data.name}</p>
+                              <p className="text-lg font-black text-white">{data.value?.toLocaleString()} Kz</p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Bar 
+                      dataKey="value" 
+                      radius={[8, 8, 0, 0]} 
+                      barSize={30}
+                    >
+                      {salesChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Bar>
+                    <Line 
+                      type="monotone" 
+                      dataKey="value" 
+                      stroke="#3b82f6" 
+                      strokeWidth={3} 
+                      dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
+                      activeDot={{ r: 6, strokeWidth: 0 }}
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
         )}
@@ -608,6 +657,31 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
             </div>
             
             <form onSubmit={handleSubmit} className="space-y-8">
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] px-2">Data do Registro</label>
+                <div className="relative">
+                  <input 
+                    type="date" 
+                    value={selectedDate} 
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const today = getLocalDateString();
+                      const minDate = new Date();
+                      const limit = accessLevel === 'full' ? 14 : 0;
+                      minDate.setDate(minDate.getDate() - limit);
+                      const minDateStr = getLocalDateString(minDate);
+                      
+                      if (val > today) return;
+                      if (val < minDateStr) return;
+                      setSelectedDate(val);
+                    }}
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-6 py-5 text-slate-900 dark:text-slate-100 font-bold focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:outline-none appearance-none" 
+                    required
+                  />
+                  <Calendar className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={20} />
+                </div>
+              </div>
+
               <div className="space-y-3">
                 <div className="flex items-center justify-between px-2">
                   <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Categoria</label>

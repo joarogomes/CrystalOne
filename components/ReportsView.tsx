@@ -133,7 +133,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddMaintena
     return (localStorage.getItem('reports_active_tab') as any) || 'transactions';
   });
   const [filterType, setFilterType] = useState<'all' | 'sale' | 'expense' | 'investment'>('all');
-  const [paymentMethodFilter, setPaymentMethodFilter] = useState<'all' | 'Consolidada' | 'Express' | 'TPA'>('all');
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<'Todos' | 'Consolidada' | 'Express' | 'TPA'>('Todos');
   const [financeViewMode, setFinanceViewMode] = useState<'history' | 'products'>('history');
   const [selectedProduct, setSelectedProduct] = useState('');
   const [phValue, setPhValue] = useState('');
@@ -202,7 +202,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddMaintena
     return state.transactions
       .filter(t => filterType === 'all' || t.type === filterType)
       .filter(t => !selectedProduct || t.category.toLowerCase().includes(selectedProduct.toLowerCase()))
-      .filter(t => paymentMethodFilter === 'all' || t.payment_method === paymentMethodFilter);
+      .filter(t => paymentMethodFilter === 'Todos' || t.payment_method === paymentMethodFilter);
   }, [state.transactions, filterType, selectedProduct, paymentMethodFilter]);
 
   const salesByProduct = useMemo(() => {
@@ -340,7 +340,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddMaintena
 
       const paymentMethodsData: Record<string, { Consolidada: number, Express: number, TPA: number, total: number }> = {};
       
-      state.transactions
+      filteredTransactionsList
         .filter(t => t.type === 'sale')
         .forEach(t => {
           const cat = t.category || 'Outros';
@@ -383,19 +383,19 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddMaintena
     const now = new Date();
     const todayStr = getLocalDateString(now);
     
-    let filteredTransactions = state.transactions;
+    let filteredTransactions = filteredTransactionsList;
     let title = "";
 
     if (period === 'diario') {
-      filteredTransactions = state.transactions.filter(t => getLocalDateString(new Date(t.created_at)) === todayStr);
+      filteredTransactions = filteredTransactionsList.filter(t => getLocalDateString(new Date(t.created_at)) === todayStr);
       title = `Relatório Diário - ${todayStr}`;
     } else if (period === 'semanal') {
       const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      filteredTransactions = state.transactions.filter(t => new Date(t.created_at) >= lastWeek);
+      filteredTransactions = filteredTransactionsList.filter(t => new Date(t.created_at) >= lastWeek);
       title = `Relatório Semanal - Últimos 7 dias`;
     } else {
       const lastMonth = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      filteredTransactions = state.transactions.filter(t => new Date(t.created_at) >= lastMonth);
+      filteredTransactions = filteredTransactionsList.filter(t => new Date(t.created_at) >= lastMonth);
       title = `Relatório Mensal - Últimos 30 dias`;
     }
 
@@ -602,13 +602,13 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddMaintena
 
               <div className="flex flex-wrap items-center gap-2 md:gap-3">
                 <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mr-2">Método de Pagamento:</span>
-                {(['all', 'Consolidada', 'Express', 'TPA'] as const).map(method => (
+                {(['Todos', 'Consolidada', 'Express', 'TPA'] as const).map(method => (
                   <button 
                     key={method}
                     onClick={() => setPaymentMethodFilter(method)}
                     className={`px-4 py-2 rounded-full text-[9px] font-black uppercase transition-all border ${paymentMethodFilter === method ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-800'}`}
                   >
-                    {method === 'all' ? 'Todos' : method}
+                    {method}
                   </button>
                 ))}
               </div>

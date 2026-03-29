@@ -3,7 +3,8 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, AreaChart, Area, BarChart, Bar, Line, ComposedChart, Legend, ReferenceLine, Cell } from 'recharts';
 import { BusinessState, AccessLevel } from '../types';
 import { getDailyMarketingTip } from '../services/geminiService';
-import { TrendingUp, TrendingDown, Wallet, BarChart3, Calendar, Sparkles, AlertCircle, Lightbulb, RefreshCw, Loader2, ShoppingBag, Plus } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, BarChart3, Calendar, Sparkles, AlertCircle, Lightbulb, RefreshCw, Loader2, ShoppingBag, Plus, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -17,7 +18,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     return (
       <div className="bg-white/98 dark:bg-slate-900/98 backdrop-blur-2xl p-6 rounded-[32px] shadow-2xl border border-white/50 dark:border-slate-800/50 flex flex-col gap-4 min-w-[240px] animate-premium ring-1 ring-black/5">
         <div className="border-b border-slate-100 dark:border-slate-800 pb-3 mb-1">
-          <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">Dia {label}</span>
+          <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">{label}</span>
         </div>
         <div className="space-y-3">
           <div className="flex justify-between items-center">
@@ -73,6 +74,9 @@ const getLocalDateString = (date: Date = new Date()) => {
 const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, accessLevel = 'full' }) => {
   const [marketingTip, setMarketingTip] = useState<string | null>(null);
   const [loadingTip, setLoadingTip] = useState(false);
+  const [isQuickSellExpanded, setIsQuickSellExpanded] = useState(true);
+  const [timeFilter, setTimeFilter] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
+  const [currentDate, setCurrentDate] = useState(new Date());
   const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
 
   const todayStr = getLocalDateString();
@@ -111,56 +115,127 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, accessLevel =
     );
   };
 
-  const dailyTrendsData = useMemo(() => {
-    const now = new Date();
-    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const data = [];
-    const statsMap: Record<number, { sales: number, expenses: number, investments: number, quantity: number }> = {};
+  const trendsData = useMemo(() => {
+    const now = currentDate;
+    const data: any[] = [];
     
-    state.transactions.forEach(t => {
-      const transactionDate = new Date(t.created_at);
-      if (transactionDate.getMonth() === now.getMonth() && transactionDate.getFullYear() === now.getFullYear()) {
-        const day = transactionDate.getDate();
-        if (!statsMap[day]) statsMap[day] = { sales: 0, expenses: 0, investments: 0, quantity: 0 };
-        
-        if (t.type === 'sale') {
-          statsMap[day].sales += t.amount;
-          statsMap[day].quantity += (t.quantity || 0);
-        }
-        else if (t.type === 'expense') statsMap[day].expenses += t.amount;
-        else if (t.type === 'investment') statsMap[day].investments += t.amount;
-      }
-    });
-
     const getSalesColor = (amount: number) => {
-      if (amount <= 0) return '#2563eb'; // Azul padrão se não houver vendas
-      if (amount <= 17000) return '#ef4444'; // Vermelho para vendas baixas
-      if (amount <= 25000) return '#f59e0b'; // Amarelo para vendas médias
-      return '#10b981'; // Verde para vendas altas
+      if (amount <= 0) return '#2563eb';
+      if (amount <= 17000) return '#ef4444';
+      if (amount <= 25000) return '#f59e0b';
+      return '#10b981';
     };
 
-    for (let i = 1; i <= daysInMonth; i++) {
-      const stats = statsMap[i] || { sales: 0, expenses: 0, investments: 0, quantity: 0 };
-      data.push({ 
-        day: i, 
-        sales: stats.sales, 
-        expenses: stats.expenses,
-        investments: stats.investments,
-        profit: stats.sales - stats.expenses - stats.investments,
-        color: getSalesColor(stats.sales)
+    if (timeFilter === 'weekly') {
+      const statsMap: Record<string, { sales: number, expenses: number, investments: number }> = {};
+      const last7Days: string[] = [];
+      
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(now.getDate() - i);
+        const dateStr = getLocalDateString(d);
+        last7Days.push(dateStr);
+        statsMap[dateStr] = { sales: 0, expenses: 0, investments: 0 };
+      }
+
+      state.transactions.forEach(t => {
+        const dateStr = getLocalDateString(new Date(t.created_at));
+        if (statsMap[dateStr]) {
+          if (t.type === 'sale') statsMap[dateStr].sales += t.amount;
+          else if (t.type === 'expense') statsMap[dateStr].expenses += t.amount;
+          else if (t.type === 'investment') statsMap[dateStr].investments += t.amount;
+        }
       });
+
+      last7Days.forEach(dateStr => {
+        const d = new Date(dateStr + 'T12:00:00');
+        const stats = statsMap[dateStr];
+        data.push({
+          label: d.toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric' }),
+          sales: stats.sales,
+          expenses: stats.expenses,
+          investments: stats.investments,
+          profit: stats.sales - stats.expenses - stats.investments,
+          color: getSalesColor(stats.sales)
+        });
+      });
+    } else if (timeFilter === 'monthly') {
+      // Group by week of the month
+      const statsMap: Record<number, { sales: number, expenses: number, investments: number }> = {
+        1: { sales: 0, expenses: 0, investments: 0 },
+        2: { sales: 0, expenses: 0, investments: 0 },
+        3: { sales: 0, expenses: 0, investments: 0 },
+        4: { sales: 0, expenses: 0, investments: 0 },
+        5: { sales: 0, expenses: 0, investments: 0 },
+      };
+      
+      state.transactions.forEach(t => {
+        const td = new Date(t.created_at);
+        if (td.getMonth() === now.getMonth() && td.getFullYear() === now.getFullYear()) {
+          const day = td.getDate();
+          const week = Math.min(5, Math.ceil(day / 7));
+          if (t.type === 'sale') statsMap[week].sales += t.amount;
+          else if (t.type === 'expense') statsMap[week].expenses += t.amount;
+          else if (t.type === 'investment') statsMap[week].investments += t.amount;
+        }
+      });
+
+      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+
+      for (let i = 1; i <= 5; i++) {
+        const stats = statsMap[i];
+        const startDay = (i - 1) * 7 + 1;
+        const endDay = Math.min(i * 7, daysInMonth);
+        
+        if (startDay > daysInMonth) continue;
+
+        data.push({
+          label: `Semana ${i} (${startDay}-${endDay})`,
+          sales: stats.sales,
+          expenses: stats.expenses,
+          investments: stats.investments,
+          profit: stats.sales - stats.expenses - stats.investments,
+          color: getSalesColor(stats.sales)
+        });
+      }
+    } else {
+      const statsMap: Record<number, { sales: number, expenses: number, investments: number }> = {};
+      const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+      
+      state.transactions.forEach(t => {
+        const td = new Date(t.created_at);
+        if (td.getFullYear() === now.getFullYear()) {
+          const month = td.getMonth();
+          if (!statsMap[month]) statsMap[month] = { sales: 0, expenses: 0, investments: 0 };
+          if (t.type === 'sale') statsMap[month].sales += t.amount;
+          else if (t.type === 'expense') statsMap[month].expenses += t.amount;
+          else if (t.type === 'investment') statsMap[month].investments += t.amount;
+        }
+      });
+
+      for (let i = 0; i < 12; i++) {
+        const stats = statsMap[i] || { sales: 0, expenses: 0, investments: 0 };
+        data.push({
+          label: months[i],
+          sales: stats.sales,
+          expenses: stats.expenses,
+          investments: stats.investments,
+          profit: stats.sales - stats.expenses - stats.investments,
+          color: getSalesColor(stats.sales)
+        });
+      }
     }
     return data;
-  }, [state.transactions]);
+  }, [state.transactions, timeFilter, currentDate]);
 
   const chartSummary = useMemo(() => {
-    return dailyTrendsData.reduce((acc, curr) => ({
+    return trendsData.reduce((acc, curr) => ({
       sales: acc.sales + curr.sales,
       expenses: acc.expenses + curr.expenses,
       investments: acc.investments + curr.investments,
       profit: acc.profit + curr.profit
     }), { sales: 0, expenses: 0, investments: 0, profit: 0 });
-  }, [dailyTrendsData]);
+  }, [trendsData]);
 
   return (
     <div className="space-y-8 animate-premium">
@@ -198,28 +273,48 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, accessLevel =
         {/* Quick Sell / Actions Grid Adaptive */}
         <div className={`${accessLevel === 'full' ? 'md:col-span-1 lg:col-span-2' : 'md:col-span-2 lg:col-span-3'} glass-panel p-6 md:p-10 rounded-[32px] md:rounded-[48px] border-2 border-blue-100/50 dark:border-blue-900/30 bg-gradient-to-br from-white to-blue-50/30 dark:from-slate-900 dark:to-blue-950/20 relative overflow-hidden group shadow-sm hover:shadow-xl transition-all`}>
           <div className="relative z-10 flex flex-col h-full">
-            <div className="flex items-center gap-3 mb-6 md:mb-8">
-              <div className="p-3 bg-blue-600 rounded-xl md:rounded-2xl text-white">
-                <ShoppingBag size={20} />
+            <div className="flex items-center justify-between mb-6 md:mb-8">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-blue-600 rounded-xl md:rounded-2xl text-white">
+                  <ShoppingBag size={20} />
+                </div>
+                <h3 className="font-black text-slate-900 dark:text-slate-100 text-base md:text-lg tracking-tight uppercase">Registro Rápido</h3>
               </div>
-              <h3 className="font-black text-slate-900 dark:text-slate-100 text-base md:text-lg tracking-tight uppercase">Registo Rápido CrystalOne</h3>
+              <button 
+                onClick={() => setIsQuickSellExpanded(!isQuickSellExpanded)}
+                className="p-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              >
+                {isQuickSellExpanded ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
+              </button>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-              {quickSellItems.map(item => (
-                <button 
-                  key={item.id}
-                  onClick={() => onQuickSell?.(item.id)}
-                  className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-4 md:p-6 rounded-[24px] md:rounded-[32px] flex flex-col items-center text-center gap-2 hover:border-blue-500 active:scale-95 transition-all shadow-sm group/btn"
+            <AnimatePresence initial={false}>
+              {isQuickSellExpanded && (
+                <motion.div 
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: 'easeInOut' }}
+                  className="overflow-hidden"
                 >
-                  <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest truncate w-full">{item.name}</span>
-                  <span className="text-xs font-black text-blue-600 dark:text-blue-400">{item.price.toLocaleString()} Kz</span>
-                  <div className="mt-1 md:mt-2 w-8 h-8 md:w-10 md:h-10 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center group-hover/btn:bg-blue-600 group-hover/btn:text-white transition-colors">
-                    <Plus size={16} />
+                  <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                    {quickSellItems.map(item => (
+                      <button 
+                        key={item.id}
+                        onClick={() => onQuickSell?.(item.id)}
+                        className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-4 md:p-6 rounded-[24px] md:rounded-[32px] flex flex-col items-center text-center gap-2 hover:border-blue-500 active:scale-95 transition-all shadow-sm group/btn"
+                      >
+                        <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest truncate w-full">{item.name}</span>
+                        <span className="text-xs font-black text-blue-600 dark:text-blue-400">{item.price.toLocaleString()} Kz</span>
+                        <div className="mt-1 md:mt-2 w-8 h-8 md:w-10 md:h-10 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center group-hover/btn:bg-blue-600 group-hover/btn:text-white transition-colors">
+                          <Plus size={16} />
+                        </div>
+                      </button>
+                    ))}
                   </div>
-                </button>
-              ))}
-            </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
           <Sparkles className="absolute -right-12 -top-12 w-64 h-64 text-blue-600/5 rotate-12" />
         </div>
@@ -258,8 +353,62 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, accessLevel =
             </h3>
             <div className="flex items-center gap-4 mt-1">
               <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">
-                {accessLevel === 'full' ? 'Comparativo de faturamento, lucro e despesas mensais' : 'Acompanhamento diário do volume de vendas'}
+                {timeFilter === 'weekly' ? `Semana de ${currentDate.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}` : timeFilter === 'monthly' ? `${currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}` : `Ano de ${currentDate.getFullYear()}`}
               </p>
+              <div className="flex items-center gap-2 ml-4">
+                <div className="flex items-center gap-1 mr-2">
+                  <button 
+                    onClick={() => {
+                      const d = new Date(currentDate);
+                      if (timeFilter === 'weekly') d.setDate(d.getDate() - 7);
+                      else if (timeFilter === 'monthly') d.setMonth(d.getMonth() - 1);
+                      else d.setFullYear(d.getFullYear() - 1);
+                      setCurrentDate(d);
+                    }}
+                    className="p-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-500 hover:text-blue-600 transition-colors"
+                  >
+                    <ChevronLeft size={14} />
+                  </button>
+                  <button 
+                    onClick={() => {
+                      const d = new Date(currentDate);
+                      if (timeFilter === 'weekly') d.setDate(d.getDate() + 7);
+                      else if (timeFilter === 'monthly') d.setMonth(d.getMonth() + 1);
+                      else d.setFullYear(d.getFullYear() + 1);
+                      setCurrentDate(d);
+                    }}
+                    className="p-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-500 hover:text-blue-600 transition-colors"
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                  <button 
+                    onClick={() => setCurrentDate(new Date())}
+                    className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1 hover:text-blue-600"
+                  >
+                    Hoje
+                  </button>
+                </div>
+                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                  <button 
+                    onClick={() => setTimeFilter('weekly')} 
+                    className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${timeFilter === 'weekly' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                  >
+                    Semana
+                  </button>
+                  <button 
+                    onClick={() => setTimeFilter('monthly')} 
+                    className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${timeFilter === 'monthly' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                  >
+                    Mês
+                  </button>
+                  <button 
+                    onClick={() => setTimeFilter('yearly')} 
+                    className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${timeFilter === 'yearly' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                  >
+                    Ano
+                  </button>
+                </div>
+              </div>
               {accessLevel === 'full' && (
                 <button 
                   onClick={() => {
@@ -303,10 +452,10 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, accessLevel =
 
         <div className="h-[400px] md:h-[500px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={dailyTrendsData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
+            <ComposedChart data={trendsData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
               <XAxis 
-                dataKey="day" 
+                dataKey="label" 
                 tick={{fontSize: 9, fontWeight: 900, fill: '#64748b'}} 
                 axisLine={false} 
                 tickLine={false}
@@ -343,11 +492,22 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, accessLevel =
               />
               
               {activeSeries.includes('sales') && (
-                <Bar dataKey="sales" radius={[4, 4, 0, 0]}>
-                  {dailyTrendsData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Bar>
+                <>
+                  <Bar dataKey="sales" radius={[4, 4, 0, 0]}>
+                    {trendsData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
+                  <Line 
+                    type="monotone" 
+                    dataKey="sales" 
+                    stroke="#3b82f6" 
+                    strokeWidth={2} 
+                    dot={{ r: 2, fill: '#3b82f6', strokeWidth: 1, stroke: '#fff' }}
+                    activeDot={{ r: 4, strokeWidth: 0 }}
+                    animationDuration={1500}
+                  />
+                </>
               )}
               
               {accessLevel === 'full' && (

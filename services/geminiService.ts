@@ -64,17 +64,26 @@ export const getDailyMarketingTip = async (state: BusinessState): Promise<string
   const context = getContextPrompt(state);
   const prompt = `Com base nos dados da CrystalOne fornecidos, crie uma ÚNICA dica de marketing diária curta (máximo 280 caracteres). A dica deve ser extremamente prática, criativa e focada em resultados imediatos (WhatsApp, combos ou fidelização). Use um tom motivador.`;
 
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: context + "\n\n" + prompt,
-      config: { temperature: 0.9 }
-    });
-    return response.text || "Crie um combo especial: na compra de 5 galões, a entrega é grátis hoje!";
-  } catch (error) {
-    console.error(error);
-    return "Que tal postar um vídeo rápido no status do WhatsApp mostrando a pureza da sua água hoje?";
+  const maxRetries = 3;
+  let delay = 1000;
+
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: context + "\n\n" + prompt,
+        config: { temperature: 0.9 }
+      });
+      return response.text || "Crie um combo especial: na compra de 5 galões, a entrega é grátis hoje!";
+    } catch (error) {
+      console.error(`Tentativa ${i + 1} falhou:`, error);
+      if (i === maxRetries - 1) break;
+      await new Promise(resolve => setTimeout(resolve, delay));
+      delay *= 2;
+    }
   }
+
+  return "Que tal postar um vídeo rápido no status do WhatsApp mostrando a pureza da sua água hoje?";
 };
 
 export const getBusinessInsights = async (state: BusinessState, type: 'daily' | 'monthly' = 'daily'): Promise<string> => {
@@ -94,17 +103,26 @@ export const getBusinessInsights = async (state: BusinessState, type: 'daily' | 
        4. Dê uma sugestão de investimento em infraestrutura ou estoque que traga retorno rápido.`
     : `Forneça uma análise rápida de 3 pontos: 1. Desempenho financeiro imediato. 2. Alerta de estoque/qualidade. 3. Uma dica prática de marketing para aplicar ainda hoje no WhatsApp da loja.`;
 
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: context + "\n\n" + requestPrompt,
-      config: { temperature: 0.7 }
-    });
-    return response.text || "Não consegui gerar a análise estratégica.";
-  } catch (error) {
-    console.error(error);
-    return "Erro ao conectar com a IA consultora.";
+  const maxRetries = 3;
+  let delay = 1000;
+
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: context + "\n\n" + requestPrompt,
+        config: { temperature: 0.7 }
+      });
+      return response.text || "Não consegui gerar a análise estratégica.";
+    } catch (error) {
+      console.error(`Tentativa ${i + 1} de insights falhou:`, error);
+      if (i === maxRetries - 1) break;
+      await new Promise(resolve => setTimeout(resolve, delay));
+      delay *= 2;
+    }
   }
+
+  return "Erro ao conectar com a IA consultora.";
 };
 
 export const getStockPredictions = async (state: BusinessState): Promise<string> => {
@@ -133,17 +151,26 @@ export const getStockPredictions = async (state: BusinessState): Promise<string>
     Forneça uma análise preditiva curta e direta (máximo 3 parágrafos). Identifique quais itens correm mais risco e dê uma sugestão de data para reposição.
   `;
 
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: context + "\n\n" + prompt,
-      config: { temperature: 0.7 }
-    });
-    return response.text || "Não foi possível gerar a previsão de estoque no momento.";
-  } catch (error) {
-    console.error(error);
-    return "Erro ao calcular previsões de estoque.";
+  const maxRetries = 3;
+  let delay = 1000;
+
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: context + "\n\n" + prompt,
+        config: { temperature: 0.7 }
+      });
+      return response.text || "Não foi possível gerar a previsão de estoque no momento.";
+    } catch (error) {
+      console.error(`Tentativa ${i + 1} de estoque falhou:`, error);
+      if (i === maxRetries - 1) break;
+      await new Promise(resolve => setTimeout(resolve, delay));
+      delay *= 2;
+    }
   }
+
+  return "Erro ao calcular previsões de estoque.";
 };
 
 export const sendChatMessage = async (state: BusinessState, history: ChatMessage[], newMessage: string): Promise<string> => {
@@ -155,19 +182,28 @@ export const sendChatMessage = async (state: BusinessState, history: ChatMessage
   const ai = new GoogleGenAI({ apiKey });
   const systemInstruction = getContextPrompt(state) + "\nResponda como um mentor de negócios focado em resultados. Use emojis ocasionalmente para ser amigável mas mantenha o profissionalismo.";
 
-  try {
-    const chat = ai.chats.create({
-      model: 'gemini-3-flash-preview',
-      config: { 
-        systemInstruction,
-        temperature: 0.8
-      }
-    });
+  const maxRetries = 3;
+  let delay = 1000;
 
-    const response = await chat.sendMessage({ message: newMessage });
-    return response.text || "Não entendi sua dúvida, pode repetir?";
-  } catch (error) {
-    console.error(error);
-    return "Ocorreu um erro na comunicação. Tente novamente em instantes.";
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const chat = ai.chats.create({
+        model: 'gemini-3-flash-preview',
+        config: { 
+          systemInstruction,
+          temperature: 0.8
+        }
+      });
+
+      const response = await chat.sendMessage({ message: newMessage });
+      return response.text || "Não entendi sua dúvida, pode repetir?";
+    } catch (error) {
+      console.error(`Tentativa ${i + 1} de chat falhou:`, error);
+      if (i === maxRetries - 1) break;
+      await new Promise(resolve => setTimeout(resolve, delay));
+      delay *= 2;
+    }
   }
+
+  return "Ocorreu um erro na comunicação. Tente novamente em instantes.";
 };

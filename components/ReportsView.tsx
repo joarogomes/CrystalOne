@@ -390,13 +390,15 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddMaintena
       filteredTransactions = filteredTransactionsList.filter(t => getLocalDateString(new Date(t.created_at)) === todayStr);
       title = `Relatório Diário - ${todayStr}`;
     } else if (period === 'semanal') {
-      const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      filteredTransactions = filteredTransactionsList.filter(t => new Date(t.created_at) >= lastWeek);
-      title = `Relatório Semanal - Últimos 7 dias`;
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      startOfWeek.setHours(0, 0, 0, 0);
+      filteredTransactions = filteredTransactionsList.filter(t => new Date(t.created_at) >= startOfWeek);
+      title = `Relatório Semanal (Desde Domingo)`;
     } else {
-      const lastMonth = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      filteredTransactions = filteredTransactionsList.filter(t => new Date(t.created_at) >= lastMonth);
-      title = `Relatório Mensal - Últimos 30 dias`;
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      filteredTransactions = filteredTransactionsList.filter(t => new Date(t.created_at) >= startOfMonth);
+      title = `Relatório Mensal (${now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })})`;
     }
 
     const sales = filteredTransactions.filter(t => t.type === 'sale');

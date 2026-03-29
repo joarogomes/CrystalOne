@@ -667,7 +667,8 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
                       const val = e.target.value;
                       const today = getLocalDateString();
                       const minDate = new Date();
-                      const limit = accessLevel === 'full' ? 14 : 0;
+                      // Para investimentos, permitimos qualquer data anterior. Para outros, mantemos o limite.
+                      const limit = activeType === 'investment' ? 365 * 10 : (accessLevel === 'full' ? 14 : 0);
                       minDate.setDate(minDate.getDate() - limit);
                       const minDateStr = getLocalDateString(minDate);
                       

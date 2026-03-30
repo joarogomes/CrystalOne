@@ -201,17 +201,6 @@ const Layout: React.FC<LayoutProps> = ({
                   {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
                   {isDarkMode ? 'Modo Claro' : 'Modo Escuro'}
                 </button>
-
-                <button 
-                  onClick={onTestDb}
-                  disabled={isTestingDb}
-                  className={`flex-1 p-4 rounded-2xl flex items-center justify-center gap-3 font-black text-[10px] uppercase tracking-widest transition-all active:scale-[0.98] border ${
-                    isTestingDb ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700' : 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/40'
-                  }`}
-                >
-                  <div className={`w-2 h-2 rounded-full ${dbStatus === 'connected' ? 'bg-emerald-500' : 'bg-red-500'} ${isTestingDb ? 'animate-ping' : ''}`} />
-                  {isTestingDb ? 'Testando...' : 'Testar Cloud'}
-                </button>
               </div>
 
               {stores.map(store => (

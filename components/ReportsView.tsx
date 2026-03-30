@@ -8,6 +8,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   AreaChart, Area, ReferenceArea, Label, Brush
 } from 'recharts';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   History, 
   Droplet, 
@@ -141,6 +142,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddMaintena
   const [showMaintForm, setShowMaintForm] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [qualityDate, setQualityDate] = useState(getLocalDateString());
+  const [isFiltersExpanded, setIsFiltersExpanded] = useState(true);
 
   // Maintenance Form State
   const [maintDate, setMaintDate] = useState(getLocalDateString());
@@ -543,77 +545,105 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddMaintena
             </div>
 
             <div className="flex flex-col gap-4">
-              <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-2">
-                {(['all', 'sale', 'expense', 'investment'] as const).map(type => (
-                  <button key={type} onClick={() => { setFilterType(type); setFinanceViewMode('history'); }} className={`flex-shrink-0 px-8 py-4 rounded-full text-[10px] font-black uppercase transition-all border ${filterType === type && financeViewMode === 'history' ? 'bg-blue-600 dark:bg-blue-500 text-white border-blue-600 dark:border-blue-500 shadow-xl' : 'bg-white dark:bg-slate-900 text-slate-400 dark:text-slate-500 border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-800'}`}>
-                    {type === 'all' ? 'Tudo' : type === 'sale' ? 'Vendas' : type === 'expense' ? 'Saídas' : 'Investimento'}
-                  </button>
-                ))}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400 rounded-xl">
+                    <Activity size={18} />
+                  </div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 uppercase tracking-widest">Filtros Avançados</h3>
+                </div>
                 <button 
-                  onClick={() => setFinanceViewMode('products')} 
-                  className={`flex-shrink-0 px-8 py-4 rounded-full text-[10px] font-black uppercase transition-all border ${financeViewMode === 'products' ? 'bg-blue-600 dark:bg-blue-500 text-white border-blue-600 dark:border-blue-500 shadow-xl' : 'bg-white dark:bg-slate-900 text-slate-400 dark:text-slate-500 border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-800'}`}
+                  onClick={() => setIsFiltersExpanded(!isFiltersExpanded)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase text-slate-400 hover:text-blue-600 transition-all"
                 >
-                  Vendas por Produto
+                  {isFiltersExpanded ? 'Recolher' : 'Expandir'}
+                  <ChevronDown size={14} className={`transition-transform duration-300 ${isFiltersExpanded ? 'rotate-180' : ''}`} />
                 </button>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 md:gap-3">
-                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mr-2">Filtrar Produto:</span>
-                {['Água 6L', 'Água 20L', 'Água 1.5L'].map(product => (
-                  <button 
-                    key={product}
-                    onClick={() => {
-                      setSelectedProduct(selectedProduct === product ? '' : product);
-                      setFinanceViewMode('history');
-                    }}
-                    className={`px-4 py-2 rounded-full text-[9px] font-black uppercase transition-all border ${selectedProduct === product ? 'bg-emerald-600 border-emerald-600 text-white shadow-lg' : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-100 dark:border-slate-800 hover:border-emerald-200 dark:hover:border-emerald-800'}`}
+              <AnimatePresence>
+                {isFiltersExpanded && (
+                  <motion.div 
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="overflow-hidden space-y-4"
                   >
-                    {product}
-                  </button>
-                ))}
-                
-                <div className="relative">
-                  <select 
-                    value={selectedProduct}
-                    onChange={(e) => {
-                      setSelectedProduct(e.target.value);
-                      if (e.target.value) setFinanceViewMode('history');
-                    }}
-                    className="appearance-none bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-full px-6 py-2 text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500/20 pr-10 cursor-pointer"
-                  >
-                    <option value="">Outros Produtos</option>
-                    {(Array.from(new Set(state.transactions.filter(t => t.type === 'sale').map(t => t.category))) as string[]).filter(c => !['Água 6L', 'Água 20L', 'Água 1.5L'].includes(c)).map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                    <ChevronDown size={12} />
-                  </div>
-                </div>
+                    <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-2">
+                      {(['all', 'sale', 'expense', 'investment'] as const).map(type => (
+                        <button key={type} onClick={() => { setFilterType(type); setFinanceViewMode('history'); }} className={`flex-shrink-0 px-8 py-4 rounded-full text-[10px] font-black uppercase transition-all border ${filterType === type && financeViewMode === 'history' ? 'bg-blue-600 dark:bg-blue-500 text-white border-blue-600 dark:border-blue-500 shadow-xl' : 'bg-white dark:bg-slate-900 text-slate-400 dark:text-slate-500 border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-800'}`}>
+                          {type === 'all' ? 'Tudo' : type === 'sale' ? 'Vendas' : type === 'expense' ? 'Saídas' : 'Investimento'}
+                        </button>
+                      ))}
+                      <button 
+                        onClick={() => setFinanceViewMode('products')} 
+                        className={`flex-shrink-0 px-8 py-4 rounded-full text-[10px] font-black uppercase transition-all border ${financeViewMode === 'products' ? 'bg-blue-600 dark:bg-blue-500 text-white border-blue-600 dark:border-blue-500 shadow-xl' : 'bg-white dark:bg-slate-900 text-slate-400 dark:text-slate-500 border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-800'}`}
+                      >
+                        Vendas por Produto
+                      </button>
+                    </div>
 
-                {selectedProduct && (
-                  <button 
-                    onClick={() => setSelectedProduct('')}
-                    className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-full transition-all"
-                    title="Limpar Filtro"
-                  >
-                    <X size={14} />
-                  </button>
+                    <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                      <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mr-2">Filtrar Produto:</span>
+                      {['Água 6L', 'Água 20L', 'Água 1.5L'].map(product => (
+                        <button 
+                          key={product}
+                          onClick={() => {
+                            setSelectedProduct(selectedProduct === product ? '' : product);
+                            setFinanceViewMode('history');
+                          }}
+                          className={`px-4 py-2 rounded-full text-[9px] font-black uppercase transition-all border ${selectedProduct === product ? 'bg-emerald-600 border-emerald-600 text-white shadow-lg' : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-100 dark:border-slate-800 hover:border-emerald-200 dark:hover:border-emerald-800'}`}
+                        >
+                          {product}
+                        </button>
+                      ))}
+                      
+                      <div className="relative">
+                        <select 
+                          value={selectedProduct}
+                          onChange={(e) => {
+                            setSelectedProduct(e.target.value);
+                            if (e.target.value) setFinanceViewMode('history');
+                          }}
+                          className="appearance-none bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-full px-6 py-2 text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500/20 pr-10 cursor-pointer"
+                        >
+                          <option value="">Outros Produtos</option>
+                          {(Array.from(new Set(state.transactions.filter(t => t.type === 'sale').map(t => t.category))) as string[]).filter(c => !['Água 6L', 'Água 20L', 'Água 1.5L'].includes(c)).map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                        </select>
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                          <ChevronDown size={12} />
+                        </div>
+                      </div>
+
+                      {selectedProduct && (
+                        <button 
+                          onClick={() => setSelectedProduct('')}
+                          className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-full transition-all"
+                          title="Limpar Filtro"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                      <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mr-2">Método de Pagamento:</span>
+                      {(['Todos', 'Consolidada', 'Express', 'TPA'] as const).map(method => (
+                        <button 
+                          key={method}
+                          onClick={() => setPaymentMethodFilter(method)}
+                          className={`px-4 py-2 rounded-full text-[9px] font-black uppercase transition-all border ${paymentMethodFilter === method ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-800'}`}
+                        >
+                          {method}
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
                 )}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 md:gap-3">
-                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mr-2">Método de Pagamento:</span>
-                {(['Todos', 'Consolidada', 'Express', 'TPA'] as const).map(method => (
-                  <button 
-                    key={method}
-                    onClick={() => setPaymentMethodFilter(method)}
-                    className={`px-4 py-2 rounded-full text-[9px] font-black uppercase transition-all border ${paymentMethodFilter === method ? 'bg-blue-600 border-blue-600 text-white shadow-lg' : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-800'}`}
-                  >
-                    {method}
-                  </button>
-                ))}
-              </div>
+              </AnimatePresence>
             </div>
 
             {financeViewMode === 'history' ? (

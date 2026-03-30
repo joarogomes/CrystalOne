@@ -237,6 +237,31 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, accessLevel =
     }), { sales: 0, expenses: 0, investments: 0, profit: 0 });
   }, [trendsData]);
 
+  const navigatePrevious = () => {
+    const d = new Date(currentDate);
+    if (timeFilter === 'weekly') d.setDate(d.getDate() - 7);
+    else if (timeFilter === 'monthly') d.setMonth(d.getMonth() - 1);
+    else d.setFullYear(d.getFullYear() - 1);
+    setCurrentDate(d);
+  };
+
+  const navigateNext = () => {
+    const d = new Date(currentDate);
+    if (timeFilter === 'weekly') d.setDate(d.getDate() + 7);
+    else if (timeFilter === 'monthly') d.setMonth(d.getMonth() + 1);
+    else d.setFullYear(d.getFullYear() + 1);
+    setCurrentDate(d);
+  };
+
+  const handleDragEnd = (_: any, info: any) => {
+    const threshold = 50;
+    if (info.offset.x > threshold) {
+      navigatePrevious();
+    } else if (info.offset.x < -threshold) {
+      navigateNext();
+    }
+  };
+
   return (
     <div className="space-y-8 animate-premium">
       
@@ -357,30 +382,27 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, accessLevel =
               </p>
               <div className="flex items-center gap-2 ml-4">
                 <div className="flex items-center gap-1 mr-2">
-                  <button 
-                    onClick={() => {
-                      const d = new Date(currentDate);
-                      if (timeFilter === 'weekly') d.setDate(d.getDate() - 7);
-                      else if (timeFilter === 'monthly') d.setMonth(d.getMonth() - 1);
-                      else d.setFullYear(d.getFullYear() - 1);
-                      setCurrentDate(d);
-                    }}
-                    className="p-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-500 hover:text-blue-600 transition-colors"
-                  >
-                    <ChevronLeft size={14} />
-                  </button>
-                  <button 
-                    onClick={() => {
-                      const d = new Date(currentDate);
-                      if (timeFilter === 'weekly') d.setDate(d.getDate() + 7);
-                      else if (timeFilter === 'monthly') d.setMonth(d.getMonth() + 1);
-                      else d.setFullYear(d.getFullYear() + 1);
-                      setCurrentDate(d);
-                    }}
-                    className="p-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-500 hover:text-blue-600 transition-colors"
-                  >
-                    <ChevronRight size={14} />
-                  </button>
+                  {timeFilter === 'monthly' && (
+                    <div className="relative">
+                      <select 
+                        value={currentDate.getMonth()}
+                        onChange={(e) => {
+                          const d = new Date(currentDate);
+                          d.setMonth(parseInt(e.target.value));
+                          setCurrentDate(d);
+                        }}
+                        className="appearance-none bg-slate-100 dark:bg-slate-800 rounded-lg px-3 py-1 text-[9px] font-black text-slate-500 uppercase tracking-widest focus:outline-none pr-6 cursor-pointer hover:text-blue-600 transition-colors"
+                      >
+                        {['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'].map((m, i) => (
+                          <option key={m} value={i}>{m}</option>
+                        ))}
+                      </select>
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                        <ChevronDown size={10} />
+                      </div>
+                    </div>
+                  )}
+
                   <button 
                     onClick={() => setCurrentDate(new Date())}
                     className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1 hover:text-blue-600"
@@ -409,17 +431,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, accessLevel =
                   </button>
                 </div>
               </div>
-              {accessLevel === 'full' && (
-                <button 
-                  onClick={() => {
-                    window.dispatchEvent(new CustomEvent('switchView', { detail: 'reports' }));
-                    localStorage.setItem('reports_active_tab', 'transactions');
-                  }}
-                  className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest hover:underline"
-                >
-                  Ver Gráfico de Vendas →
-                </button>
-              )}
+
             </div>
           </div>
 
@@ -450,7 +462,13 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, accessLevel =
           </div>
         </div>
 
-        <div className="h-[400px] md:h-[500px] w-full">
+        <motion.div 
+          className="h-[400px] md:h-[500px] w-full cursor-grab active:cursor-grabbing"
+          drag="x"
+          dragConstraints={{ left: 0, right: 0 }}
+          dragElastic={0.2}
+          onDragEnd={handleDragEnd}
+        >
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={trendsData} margin={{ top: 20, right: 0, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
@@ -555,7 +573,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, accessLevel =
               )}
             </ComposedChart>
           </ResponsiveContainer>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

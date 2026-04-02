@@ -34,6 +34,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
   const [customCategory, setCustomCategory] = useState('');
   const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [description, setDescription] = useState('');
+  const [customerName, setCustomerName] = useState('');
   const [selectedDate, setSelectedDate] = useState(getLocalDateString());
   const [salesTimeFilter, setSalesTimeFilter] = useState<'day' | 'week' | 'month'>('day');
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<PaymentMethod | 'Todos'>('Todos');
@@ -117,6 +118,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
       description: activeType === 'sale' ? (description || `Venda ${paymentMethod}`) : description,
       quantity: parseInt(quantity) || 1,
       payment_method: activeType === 'sale' ? paymentMethod : undefined,
+      customer_name: activeType === 'sale' ? customerName : undefined,
       created_at: createdAt
     });
 
@@ -127,6 +129,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
     setCustomCategory('');
     setIsCustomCategory(false);
     setDescription('');
+    setCustomerName('');
     setIsOpen(false);
   };
 
@@ -594,23 +597,38 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
       {/* Transaction List */}
       <div className="space-y-3 md:space-y-4">
         {activeType === 'sale' ? (
-          groupedSales && groupedSales.length > 0 ? (
-            groupedSales.map(([dateStr, data]) => (
-              <div key={dateStr} className="glass-card p-4 md:p-6 rounded-[24px] md:rounded-[32px] flex items-center justify-between group active:scale-98 transition-all bg-white/60 dark:bg-slate-900/60 border border-white dark:border-slate-800 shadow-sm">
-                <div className="flex items-center gap-3 md:gap-5">
-                  <div className="bg-blue-600 p-3 md:p-4 rounded-xl md:rounded-2xl text-white shadow-lg shadow-blue-600/20">
-                    <ShoppingCart size={20} />
+          filteredTransactions
+            .filter(t => getLocalDateString(new Date(t.created_at)) === selectedDate)
+            .filter(t => paymentMethodFilter === 'Todos' || t.payment_method === paymentMethodFilter)
+            .length > 0 ? (
+            filteredTransactions
+              .filter(t => getLocalDateString(new Date(t.created_at)) === selectedDate)
+              .filter(t => paymentMethodFilter === 'Todos' || t.payment_method === paymentMethodFilter)
+              .map(t => (
+                <div key={t.id} className="glass-card p-4 md:p-6 rounded-[24px] md:rounded-[32px] flex items-center justify-between group active:scale-98 transition-all bg-white/60 dark:bg-slate-900/60 border border-white dark:border-slate-800 shadow-sm">
+                  <div className="flex items-center gap-3 md:gap-5">
+                    <div className="bg-blue-600 p-3 md:p-4 rounded-xl md:rounded-2xl text-white shadow-lg shadow-blue-600/20">
+                      <ShoppingCart size={20} />
+                    </div>
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-2">
+                        <span className="font-black text-slate-900 dark:text-slate-100 text-sm md:text-base leading-none mb-1">{t.category}</span>
+                        {t.customer_name && (
+                          <span className="text-[8px] font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950 px-2 py-0.5 rounded-md uppercase tracking-tighter">
+                            {t.customer_name}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[9px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-widest">
+                        {new Date(t.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} • {t.payment_method}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex flex-col">
-                    <span className="font-black text-slate-900 dark:text-slate-100 text-sm md:text-base leading-none mb-1">{dateStr}</span>
-                    <span className="text-[9px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-widest">{data.count} LANÇAMENTOS</span>
+                  <div className="flex flex-col items-end">
+                    <span className="font-black text-blue-600 dark:text-blue-400 text-lg md:text-xl tracking-tight">+ {t.amount.toLocaleString()} Kz</span>
                   </div>
                 </div>
-                <div className="flex flex-col items-end">
-                  <span className="font-black text-blue-600 dark:text-blue-400 text-lg md:text-xl tracking-tight">+ {data.total.toLocaleString()} Kz</span>
-                </div>
-              </div>
-            ))
+              ))
           ) : (
             <div className="bg-white/30 dark:bg-slate-900/30 backdrop-blur-sm p-10 md:p-16 rounded-[32px] md:rounded-[40px] border-4 border-dashed border-white/40 dark:border-slate-800/40 text-center flex flex-col items-center gap-4">
               <div className="p-4 md:p-6 bg-white/50 dark:bg-slate-800/50 rounded-full">
@@ -646,14 +664,14 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
       {/* Modal Form */}
       {isOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6">
-          <div className="absolute inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-xl" onClick={() => setIsOpen(false)} />
+          <div className="absolute inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-xl" onClick={() => { setIsOpen(false); setCustomerName(''); }} />
           <div className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[32px] md:rounded-[48px] p-6 md:p-10 shadow-2xl animate-premium border border-white/40 dark:border-slate-800/40">
             <div className="flex justify-between items-center mb-6 md:mb-10">
               <div className="flex flex-col">
                 <h3 className="text-xl md:text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Novo Registro</h3>
                 <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">{activeType === 'sale' ? 'Faturamento' : 'Despesa'}</span>
               </div>
-              <button onClick={() => setIsOpen(false)} className="text-slate-300 dark:text-slate-600 p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full"><X size={24} /></button>
+              <button onClick={() => { setIsOpen(false); setCustomerName(''); }} className="text-slate-300 dark:text-slate-600 p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full"><X size={24} /></button>
             </div>
             
             <form onSubmit={handleSubmit} className="space-y-8">
@@ -739,6 +757,19 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
                       </button>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {activeType === 'sale' && (
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] px-2">Nome do Cliente (Opcional)</label>
+                  <input 
+                    type="text" 
+                    value={customerName} 
+                    onChange={e => setCustomerName(e.target.value)} 
+                    placeholder="Ex: João Silva" 
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-6 py-5 text-slate-900 dark:text-slate-100 font-bold focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:outline-none" 
+                  />
                 </div>
               )}
 

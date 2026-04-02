@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS public.transactions (
   description TEXT,
   quantity INTEGER DEFAULT 1,
   payment_method TEXT CHECK (payment_method IN ('Express', 'Consolidada', 'TPA')),
+  customer_name TEXT,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 

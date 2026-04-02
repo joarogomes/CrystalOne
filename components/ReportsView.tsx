@@ -743,7 +743,14 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddMaintena
                                  <TrendingDown size={20} />}
                               </div>
                               <div className="flex flex-col">
-                                <span className="font-black text-slate-800 dark:text-slate-200 text-sm md:text-base mb-0.5 md:mb-1">{t.category}</span>
+                                <div className="flex items-center gap-2 mb-0.5 md:mb-1">
+                                  <span className="font-black text-slate-800 dark:text-slate-200 text-sm md:text-base leading-none">{t.category}</span>
+                                  {t.customer_name && (
+                                    <span className="text-[8px] font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 px-2 py-0.5 rounded-md uppercase tracking-tighter">
+                                      {t.customer_name}
+                                    </span>
+                                  )}
+                                </div>
                                 <div className="flex items-center gap-2">
                                   <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">{new Date(t.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                   {t.payment_method && (

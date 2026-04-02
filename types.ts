@@ -11,6 +11,7 @@ export interface Transaction {
   description: string;
   quantity: number;
   payment_method?: PaymentMethod;
+  customer_name?: string;
   created_at: string;
 }
 

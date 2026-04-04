@@ -448,30 +448,42 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
             <div ref={chartContainerRef} className="h-[300px] md:h-[400px] w-full overflow-x-auto scrollbar-hide scroll-smooth">
               <div style={{ minWidth: salesChartData.length > 8 ? `${salesChartData.length * 60}px` : '100%', height: '100%' }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={salesChartData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <ComposedChart data={salesChartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2}/>
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.03)" />
                     <XAxis 
                       dataKey="name" 
                       axisLine={false} 
                       tickLine={false} 
-                      tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 800 }} 
+                      tick={{ fill: '#94a3b8', fontSize: 9, fontWeight: 900 }} 
                       dy={10}
                     />
                     <YAxis 
                       axisLine={false} 
                       tickLine={false} 
-                      tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 800 }}
-                      tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                      tick={{ fill: '#94a3b8', fontSize: 9, fontWeight: 800 }}
+                      tickFormatter={(value) => value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value}
                     />
                     <Tooltip 
-                      cursor={{ fill: '#f8fafc', opacity: 0.4 }}
+                      cursor={{ fill: '#3b82f6', opacity: 0.05 }}
                       content={({ active, payload }) => {
                         if (active && payload && payload.length) {
                           const data = payload[0].payload;
                           return (
                             <div className="bg-slate-900 p-4 rounded-2xl shadow-2xl border border-white/10 animate-premium">
-                              <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">{data.name}</p>
-                              <p className="text-lg font-black text-white">{data.value?.toLocaleString()} Kz</p>
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{data.name}</p>
+                              <div className="flex items-center gap-2 mb-1">
+                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: data.color }}></div>
+                                <p className="text-lg font-black text-white">{data.value?.toLocaleString()} Kz</p>
+                              </div>
+                              <p className="text-[8px] font-black uppercase tracking-widest" style={{ color: data.color }}>
+                                {data.value <= 17000 ? 'Desempenho Baixo' : data.value <= 25000 ? 'Desempenho Médio' : 'Desempenho Alto'}
+                              </p>
                             </div>
                           );
                         }
@@ -480,20 +492,21 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
                     />
                     <Bar 
                       dataKey="value" 
-                      radius={[8, 8, 0, 0]} 
-                      barSize={30}
+                      radius={[6, 6, 0, 0]} 
+                      barSize={24}
                     >
                       {salesChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                        <Cell key={`cell-${index}`} fill={entry.color} fillOpacity={0.8} />
                       ))}
                     </Bar>
-                    <Line 
+                    <Area 
                       type="monotone" 
                       dataKey="value" 
                       stroke="#3b82f6" 
-                      strokeWidth={3} 
-                      dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
-                      activeDot={{ r: 6, strokeWidth: 0 }}
+                      strokeWidth={2} 
+                      strokeDasharray="5 5"
+                      fill="url(#salesGrad)"
+                      animationDuration={2000}
                     />
                   </ComposedChart>
                 </ResponsiveContainer>

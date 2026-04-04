@@ -8,7 +8,7 @@ import ReportsView from './components/ReportsView';
 import NotificationToast from './components/NotificationToast';
 import LoginPin from './components/LoginPin';
 import DatabaseSetupView from './components/DatabaseSetupView';
-import { BusinessState, ViewType, Transaction, InventoryItem, InventoryMovement, Store, AppNotification, PHRecord, AccessLevel, MaintenanceRecord } from './types';
+import { BusinessState, ViewType, Transaction, InventoryItem, InventoryMovement, Store, AppNotification, PHRecord, TDSRecord, AccessLevel, MaintenanceRecord } from './types';
 import { INITIAL_INVENTORY } from './constants';
 import { supabase } from './services/supabase';
 
@@ -28,6 +28,7 @@ const App: React.FC = () => {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [inventoryMovements, setInventoryMovements] = useState<InventoryMovement[]>([]);
   const [phRecords, setPhRecords] = useState<PHRecord[]>([]);
+  const [tdsRecords, setTdsRecords] = useState<TDSRecord[]>([]);
   const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([]);
   const [isTestingDb, setIsTestingDb] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -138,10 +139,11 @@ const App: React.FC = () => {
 
     const loadData = async () => {
       try {
-        const [tRes, iRes, phRes, mRes, maintRes] = await Promise.all([
+        const [tRes, iRes, phRes, tdsRes, mRes, maintRes] = await Promise.all([
           supabase.from('transactions').select('*').eq('store_id', activeStoreId).order('created_at', { ascending: false }),
           supabase.from('inventory_items').select('*').eq('store_id', activeStoreId).order('name'),
           supabase.from('ph_records').select('*').eq('store_id', activeStoreId).order('created_at', { ascending: false }),
+          supabase.from('tds_records').select('*').eq('store_id', activeStoreId).order('created_at', { ascending: false }),
           supabase.from('inventory_movements').select('*').order('created_at', { ascending: false }),
           supabase.from('maintenance_records').select('*').eq('store_id', activeStoreId).order('date', { ascending: false })
         ]);
@@ -149,6 +151,7 @@ const App: React.FC = () => {
         setTransactions(tRes.data || []);
         setInventory(iRes.data || []);
         setPhRecords(phRes.data || []);
+        setTdsRecords(tdsRes.data || []);
         setInventoryMovements(mRes.data || []);
         setMaintenanceRecords(maintRes.data || []);
       } catch (err) {
@@ -364,6 +367,50 @@ const App: React.FC = () => {
     }
   };
 
+  const handleAddTDSRecord = async (value: number) => {
+    let status: 'Ideal' | 'Alerta' | 'Crítico' = 'Ideal';
+    // Faixas típicas para água mineral/purificada (exemplo)
+    if (value > 150) status = 'Crítico';
+    else if (value > 100) status = 'Alerta';
+
+    try {
+      const { data, error } = await supabase.from('tds_records').insert([{
+        store_id: activeStoreId,
+        value,
+        status
+      }]).select().single();
+      
+      if (error) throw error;
+      
+      if (data) {
+        setTdsRecords(prev => [data, ...prev]);
+        if (status !== 'Ideal') {
+          const tdsNotification: AppNotification = {
+            id: crypto.randomUUID(),
+            store_id: activeStoreId || '',
+            title: `Alerta de TDS: ${status}`,
+            message: `O TDS registrado (${value}) está elevado.`,
+            type: status === 'Crítico' ? 'danger' : 'warning',
+            read: false,
+            created_at: new Date().toISOString()
+          };
+          setToast(tdsNotification);
+        }
+      }
+    } catch (err: any) {
+      console.error("Erro ao salvar TDS:", err);
+      setToast({
+        id: crypto.randomUUID(),
+        store_id: activeStoreId || '',
+        title: 'Erro de Registro',
+        message: `Falha ao salvar registro de TDS: ${err.message || 'Erro de rede'}`,
+        type: 'danger',
+        read: false,
+        created_at: new Date().toISOString()
+      });
+    }
+  };
+
   const handleAddMaintenance = async (maint: Omit<MaintenanceRecord, 'id' | 'store_id' | 'created_at'>) => {
     try {
       const { data, error } = await supabase.from('maintenance_records').insert([{
@@ -528,8 +575,10 @@ const App: React.FC = () => {
       <div className="pb-8">
         {activeView === 'dashboard' && (
           <Dashboard 
-            state={{ transactions, inventory, inventoryMovements, phRecords, maintenanceRecords }} 
+            state={{ transactions, inventory, inventoryMovements, phRecords, tdsRecords, maintenanceRecords }} 
             onQuickSell={(itemId) => handleUpdateInventory(itemId, -1)}
+            onAddPH={handleAddPHRecord}
+            onAddTDS={handleAddTDSRecord}
             accessLevel={accessLevel}
           />
         )}
@@ -556,8 +605,9 @@ const App: React.FC = () => {
         {activeView === 'inventory' && <InventoryView inventory={inventory} movements={inventoryMovements} onUpdate={handleUpdateInventory} onAddItem={handleAddInventoryItem} />}
         {activeView === 'reports' && (
           <ReportsView 
-            state={{ transactions, inventory, inventoryMovements, phRecords, maintenanceRecords }} 
+            state={{ transactions, inventory, inventoryMovements, phRecords, tdsRecords, maintenanceRecords }} 
             onAddPH={handleAddPHRecord} 
+            onAddTDS={handleAddTDSRecord}
             onAddMaintenance={handleAddMaintenance}
             storeName={stores.find(s => s.id === activeStoreId)?.name} 
             accessLevel={accessLevel}
@@ -565,8 +615,9 @@ const App: React.FC = () => {
         )}
         {activeView === 'quality' && (
           <ReportsView 
-            state={{ transactions, inventory, inventoryMovements, phRecords, maintenanceRecords }} 
+            state={{ transactions, inventory, inventoryMovements, phRecords, tdsRecords, maintenanceRecords }} 
             onAddPH={handleAddPHRecord} 
+            onAddTDS={handleAddTDSRecord}
             onAddMaintenance={handleAddMaintenance}
             storeName={stores.find(s => s.id === activeStoreId)?.name} 
             accessLevel={accessLevel}

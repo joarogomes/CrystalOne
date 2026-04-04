@@ -42,6 +42,14 @@ export interface PHRecord {
   created_at: string;
 }
 
+export interface TDSRecord {
+  id: string;
+  store_id: string;
+  value: number;
+  status: 'Ideal' | 'Alerta' | 'Crítico';
+  created_at: string;
+}
+
 export type MaintenanceArea = 'Filtros Pré-tratamento' | 'Filtros Pós Tratamento' | 'Osmose' | 'UV';
 export type MaintenanceType = 'Preventiva' | 'Corretiva' | 'Limpeza' | 'Troca de Componente';
 
@@ -70,6 +78,7 @@ export interface BusinessState {
   inventory: InventoryItem[];
   inventoryMovements: InventoryMovement[];
   phRecords: PHRecord[];
+  tdsRecords: TDSRecord[];
   maintenanceRecords: MaintenanceRecord[];
 }
 

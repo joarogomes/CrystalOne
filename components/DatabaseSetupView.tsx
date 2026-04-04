@@ -55,7 +55,16 @@ CREATE TABLE IF NOT EXISTS public.ph_records (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 5. Tabela de Movimentações de Estoque
+-- 5. Tabela de Registros de TDS
+CREATE TABLE IF NOT EXISTS public.tds_records (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  store_id UUID REFERENCES public.stores(id) ON DELETE CASCADE,
+  value DOUBLE PRECISION NOT NULL,
+  status TEXT CHECK (status IN ('Ideal', 'Alerta', 'Crítico')),
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 6. Tabela de Movimentações de Estoque
 CREATE TABLE IF NOT EXISTS public.inventory_movements (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   item_id UUID REFERENCES public.inventory_items(id) ON DELETE CASCADE,
@@ -80,6 +89,7 @@ ALTER TABLE public.stores ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inventory_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ph_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tds_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inventory_movements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.maintenance_records ENABLE ROW LEVEL SECURITY;
 
@@ -88,6 +98,7 @@ DROP POLICY IF EXISTS "Permitir tudo para todos" ON public.stores;
 DROP POLICY IF EXISTS "Permitir tudo para todos" ON public.inventory_items;
 DROP POLICY IF EXISTS "Permitir tudo para todos" ON public.transactions;
 DROP POLICY IF EXISTS "Permitir tudo para todos" ON public.ph_records;
+DROP POLICY IF EXISTS "Permitir tudo para todos" ON public.tds_records;
 DROP POLICY IF EXISTS "Permitir tudo para todos" ON public.inventory_movements;
 DROP POLICY IF EXISTS "Permitir tudo para todos" ON public.maintenance_records;
 
@@ -96,6 +107,7 @@ CREATE POLICY "Permitir tudo para todos" ON public.stores FOR ALL USING (true) W
 CREATE POLICY "Permitir tudo para todos" ON public.inventory_items FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Permitir tudo para todos" ON public.transactions FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Permitir tudo para todos" ON public.ph_records FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Permitir tudo para todos" ON public.tds_records FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Permitir tudo para todos" ON public.inventory_movements FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Permitir tudo para todos" ON public.maintenance_records FOR ALL USING (true) WITH CHECK (true);`;
 

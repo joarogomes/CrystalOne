@@ -37,6 +37,7 @@ import { AccessLevel } from '../types';
 interface ReportsViewProps {
   state: BusinessState;
   onAddPH: (value: number) => void;
+  onAddTDS: (value: number) => void;
   onAddMaintenance: (maint: Omit<MaintenanceRecord, 'id' | 'store_id' | 'created_at'>) => void;
   storeName?: string;
   accessLevel?: AccessLevel;
@@ -127,7 +128,7 @@ const getLocalDateString = (date: Date = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
-const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddMaintenance, storeName = "CrystalOne", accessLevel = 'full', initialTab }) => {
+const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddTDS, onAddMaintenance, storeName = "CrystalOne", accessLevel = 'full', initialTab }) => {
   const [activeTab, setActiveTab] = useState<ReportTab>(() => {
     if (initialTab) return initialTab;
     if (accessLevel === 'operational') return 'quality';
@@ -138,7 +139,9 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddMaintena
   const [financeViewMode, setFinanceViewMode] = useState<'history' | 'products'>('history');
   const [selectedProduct, setSelectedProduct] = useState('');
   const [phValue, setPhValue] = useState('');
+  const [tdsValue, setTdsValue] = useState('');
   const [showPHForm, setShowPHForm] = useState(false);
+  const [showTDSForm, setShowTDSForm] = useState(false);
   const [showMaintForm, setShowMaintForm] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [qualityDate, setQualityDate] = useState(getLocalDateString());
@@ -199,6 +202,31 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddMaintena
     const stability = Math.round((filteredPhRecords.filter(r => r.status === 'Ideal').length / filteredPhRecords.length) * 100);
     return { avg, max, min, stability };
   }, [filteredPhRecords]);
+
+  const filteredTdsRecords = useMemo(() => {
+    return (state.tdsRecords || [])
+      .filter(r => getLocalDateString(new Date(r.created_at)) === qualityDate)
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  }, [state.tdsRecords, qualityDate]);
+
+  const hourlyTdsData = useMemo(() => {
+    return filteredTdsRecords.map(r => ({
+      time: new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      fullTime: new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      value: r.value,
+      status: r.status
+    }));
+  }, [filteredTdsRecords]);
+
+  const tdsStats = useMemo(() => {
+    if (filteredTdsRecords.length === 0) return null;
+    const values = filteredTdsRecords.map(r => r.value);
+    const avg = values.reduce((a, b) => a + b, 0) / values.length;
+    const max = Math.max(...values);
+    const min = Math.min(...values);
+    const stability = Math.round((filteredTdsRecords.filter(r => r.status === 'Ideal').length / filteredTdsRecords.length) * 100);
+    return { avg, max, min, stability };
+  }, [filteredTdsRecords]);
 
   const filteredTransactionsList = useMemo(() => {
     return state.transactions
@@ -264,6 +292,17 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddMaintena
       onAddPH(val);
       setPhValue('');
       setShowPHForm(false);
+      setQualityDate(new Date().toISOString().split('T')[0]);
+    }
+  };
+
+  const handleTDSSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const val = parseFloat(tdsValue);
+    if (!isNaN(val)) {
+      onAddTDS(val);
+      setTdsValue('');
+      setShowTDSForm(false);
       setQualityDate(new Date().toISOString().split('T')[0]);
     }
   };
@@ -812,38 +851,46 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddMaintena
 
         {activeTab === 'quality' && (
           <div className="space-y-6 md:space-y-10 animate-tabContentIn pb-12">
-            {phStats && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-                <div className="bg-white dark:bg-slate-900 p-4 md:p-8 rounded-[24px] md:rounded-[44px] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center text-center">
-                   <div className="p-3 md:p-4 bg-blue-50 dark:bg-blue-950/30 rounded-2xl md:rounded-3xl text-blue-600 dark:text-blue-400 mb-3 md:mb-4"><Activity size={20} /></div>
-                   <span className="text-[9px] md:text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 md:mb-2">pH Médio</span>
-                   <span className="text-xl md:text-3xl font-black text-slate-900 dark:text-slate-100">{phStats.avg.toFixed(2)}</span>
-                </div>
-                <div className="bg-white dark:bg-slate-900 p-4 md:p-8 rounded-[24px] md:rounded-[44px] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center text-center">
-                   <div className="p-3 md:p-4 bg-emerald-50 dark:bg-emerald-950/30 rounded-2xl md:rounded-3xl text-emerald-600 dark:text-emerald-400 mb-3 md:mb-4"><ArrowUp size={20} /></div>
-                   <span className="text-[9px] md:text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 md:mb-2">Máximo</span>
-                   <span className="text-xl md:text-3xl font-black text-slate-900 dark:text-slate-100">{phStats.max.toFixed(1)}</span>
-                </div>
-                <div className="bg-white dark:bg-slate-900 p-4 md:p-8 rounded-[24px] md:rounded-[44px] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center text-center">
-                   <div className="p-3 md:p-4 bg-rose-50 dark:bg-rose-950/30 rounded-2xl md:rounded-3xl text-rose-600 dark:text-rose-400 mb-3 md:mb-4"><ArrowDown size={20} /></div>
-                   <span className="text-[9px] md:text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 md:mb-2">Mínimo</span>
-                   <span className="text-xl md:text-3xl font-black text-slate-900 dark:text-slate-100">{phStats.min.toFixed(1)}</span>
-                </div>
-                <div className="bg-blue-600 dark:bg-blue-700 p-4 md:p-8 rounded-[24px] md:rounded-[44px] shadow-2xl flex flex-col items-center text-center text-white">
-                   <div className="p-3 md:p-4 bg-white/20 rounded-2xl md:rounded-3xl mb-3 md:mb-4"><ShieldCheck size={20} /></div>
-                   <span className="text-[9px] md:text-[10px] font-black text-blue-100 uppercase tracking-widest mb-1 md:mb-2">Estabilidade</span>
-                   <span className="text-xl md:text-3xl font-black">{phStats.stability}%</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10">
+              {/* pH Stats */}
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-4">Métricas de pH</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-white dark:bg-slate-900 p-4 md:p-6 rounded-[24px] md:rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center text-center">
+                    <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Média</span>
+                    <span className="text-lg md:text-2xl font-black text-slate-900 dark:text-slate-100">{phStats?.avg.toFixed(2) || '0.00'}</span>
+                  </div>
+                  <div className="bg-blue-600 p-4 md:p-6 rounded-[24px] md:rounded-[32px] shadow-lg flex flex-col items-center text-center text-white">
+                    <span className="text-[8px] font-black text-blue-100 uppercase tracking-widest mb-1">Estabilidade</span>
+                    <span className="text-lg md:text-2xl font-black">{phStats?.stability || '0'}%</span>
+                  </div>
                 </div>
               </div>
-            )}
+
+              {/* TDS Stats */}
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest pl-4">Métricas de TDS</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-white dark:bg-slate-900 p-4 md:p-6 rounded-[24px] md:rounded-[32px] border border-slate-100 dark:border-slate-800 shadow-sm flex flex-col items-center text-center">
+                    <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">TDS Médio</span>
+                    <span className="text-lg md:text-2xl font-black text-slate-900 dark:text-slate-100">{tdsStats?.avg.toFixed(0) || '0'} ppm</span>
+                  </div>
+                  <div className="bg-emerald-600 p-4 md:p-6 rounded-[24px] md:rounded-[32px] shadow-lg flex flex-col items-center text-center text-white">
+                    <span className="text-[8px] font-black text-emerald-100 uppercase tracking-widest mb-1">Pureza</span>
+                    <span className="text-lg md:text-2xl font-black">{tdsStats?.stability || '0'}%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-10">
               <div className="lg:col-span-2 space-y-6 md:space-y-8">
+                {/* pH Chart */}
                 <div className="bg-white dark:bg-slate-900 p-6 md:p-12 rounded-[32px] md:rounded-[56px] border border-slate-100 dark:border-slate-800 shadow-xl relative overflow-hidden">
                   <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 md:mb-12 gap-6 relative z-10">
                     <div className="flex flex-col">
                       <h3 className="text-lg md:text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-3">
-                        <ShieldCheck className="text-blue-600 dark:text-blue-400" size={20} /> Pureza e Controle
+                        <ShieldCheck className="text-blue-600 dark:text-blue-400" size={20} /> Monitoramento de pH
                       </h3>
                       <span className="text-[10px] text-blue-600 dark:text-blue-400 font-black uppercase tracking-widest mt-1">Histórico Lab Diário</span>
                     </div>
@@ -863,7 +910,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddMaintena
                     </div>
                   </div>
 
-                  <div className="h-[350px] md:h-[500px] w-full relative z-10">
+                  <div className="h-[300px] md:h-[400px] w-full relative z-10">
                     {hourlyPhData.length > 0 ? (
                       <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={hourlyPhData} margin={{ top: 10, right: 10, left: -25, bottom: 10 }}>
@@ -877,24 +924,53 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddMaintena
                           <XAxis dataKey="time" tick={{fontSize: 9, fontWeight: 900, fill: '#64748b'}} axisLine={false} tickLine={false} />
                           <YAxis domain={[5, 10]} ticks={[6, 7, 8, 9]} tick={{fontSize: 9, fontWeight: 800, fill: '#94a3b8'}} axisLine={false} tickLine={false} />
                           <Tooltip content={<CustomPHTooltip />} animationDuration={150} cursor={{ stroke: '#2563eb', strokeWidth: 2, strokeDasharray: '5 5' }} />
-                          
                           <ReferenceArea {...({ y1: 6.8, y2: 7.5, fill: COLORS.Ideal, fillOpacity: 0.12 } as any)}>
                              <Label value="FAIXA PREMIUM" position="insideTopLeft" fill={COLORS.Ideal} fontSize={8} fontWeight={900} offset={10} />
                           </ReferenceArea>
-                          
                           <Area type="monotone" dataKey="value" stroke="#2563eb" strokeWidth={3} fill="url(#phGrad)" animationDuration={1500} dot={<RenderCustomDot />} activeDot={{ r: 10, strokeWidth: 3, stroke: '#fff' }} />
-                          
-                          <Brush dataKey="time" height={30} stroke="#2563eb" fill="transparent" travellerWidth={15}>
-                            <AreaChart>
-                               <Area type="monotone" dataKey="value" stroke="#2563eb" fill="#2563eb" fillOpacity={0.1} />
-                            </AreaChart>
-                          </Brush>
                         </AreaChart>
                       </ResponsiveContainer>
                     ) : (
                       <div className="h-full flex flex-col items-center justify-center text-slate-300 dark:text-slate-700 gap-4 md:gap-6 border-4 border-dashed border-slate-50 dark:border-slate-800 rounded-[32px] md:rounded-[48px]">
                          <div className="p-6 md:p-10 bg-white dark:bg-slate-800 rounded-full shadow-2xl"><Droplet size={48} className="text-slate-100 dark:text-slate-900" /></div>
-                         <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-600">Aguardando medições.</p>
+                         <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-600">Aguardando medições de pH.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* TDS Chart */}
+                <div className="bg-white dark:bg-slate-900 p-6 md:p-12 rounded-[32px] md:rounded-[56px] border border-slate-100 dark:border-slate-800 shadow-xl relative overflow-hidden">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 md:mb-12 gap-6 relative z-10">
+                    <div className="flex flex-col">
+                      <h3 className="text-lg md:text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight flex items-center gap-3">
+                        <Activity className="text-emerald-600 dark:text-emerald-400" size={20} /> Monitoramento de TDS
+                      </h3>
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-black uppercase tracking-widest mt-1">Sólidos Dissolvidos Totais (ppm)</span>
+                    </div>
+                  </div>
+
+                  <div className="h-[300px] md:h-[400px] w-full relative z-10">
+                    {hourlyTdsData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={hourlyTdsData} margin={{ top: 10, right: 10, left: -25, bottom: 10 }}>
+                          <defs>
+                            <linearGradient id="tdsGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                              <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                          <XAxis dataKey="time" tick={{fontSize: 9, fontWeight: 900, fill: '#64748b'}} axisLine={false} tickLine={false} />
+                          <YAxis tick={{fontSize: 9, fontWeight: 800, fill: '#94a3b8'}} axisLine={false} tickLine={false} />
+                          <Tooltip animationDuration={150} />
+                          <Area type="monotone" dataKey="value" stroke="#10b981" strokeWidth={3} fill="url(#tdsGrad)" animationDuration={1500} dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-full flex flex-col items-center justify-center text-slate-300 dark:text-slate-700 gap-4 md:gap-6 border-4 border-dashed border-slate-50 dark:border-slate-800 rounded-[32px] md:rounded-[48px]">
+                         <div className="p-6 md:p-10 bg-white dark:bg-slate-800 rounded-full shadow-2xl"><Activity size={48} className="text-slate-100 dark:text-slate-900" /></div>
+                         <p className="text-[10px] md:text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-600">Aguardando medições de TDS.</p>
                       </div>
                     )}
                   </div>
@@ -914,39 +990,44 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddMaintena
                          <p className="text-[10px] md:text-[11px] text-slate-500 dark:text-slate-400 font-medium">Equilíbrio perfeito. Própria para envase imediato.</p>
                       </div>
                    </div>
-                   <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-[32px] md:rounded-[40px] border border-slate-100 dark:border-slate-800 shadow-sm flex items-start gap-4 md:gap-5">
-                      <div className="p-3 md:p-4 bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 rounded-2xl md:rounded-3xl"><Activity size={24} /></div>
-                      <div>
-                         <div className="flex justify-between items-center mb-1">
-                            <span className="font-black text-slate-900 dark:text-slate-100 text-xs md:text-sm uppercase">ZONA DE RISCO</span>
-                            <span className="text-[9px] md:text-[10px] font-black text-rose-600 dark:text-rose-400">&lt; 6.5 / &gt; 8.0</span>
-                         </div>
-                         <p className="text-[10px] md:text-[11px] text-slate-500 dark:text-slate-400 font-medium">Bloqueio automático de lote e limpeza de filtros.</p>
-                      </div>
-                   </div>
-                   <button 
-                      onClick={() => setShowPHForm(true)}
-                      className="w-full bg-slate-900 dark:bg-slate-950 p-8 md:p-10 rounded-[32px] md:rounded-[44px] shadow-2xl text-left text-white group hover:scale-[1.02] transition-transform active:scale-95 border border-white/5 dark:border-slate-800/50"
-                    >
-                      <div className="flex items-center justify-between mb-3 md:mb-4">
-                         <span className="text-[10px] font-black text-blue-400 dark:text-blue-300 uppercase tracking-widest opacity-60">Operação Manual</span>
-                         <Plus size={20} className="text-blue-500 dark:text-blue-400 group-hover:rotate-90 transition-transform" />
-                      </div>
-                      <h3 className="text-lg md:text-xl font-black mb-1 md:mb-2">Registrar pH</h3>
-                      <p className="text-[9px] md:text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Validar pureza do lote atual.</p>
-                   </button>
+                   
+                   <div className="grid grid-cols-1 gap-4">
+                     <button 
+                        onClick={() => setShowPHForm(true)}
+                        className="w-full bg-slate-900 dark:bg-slate-950 p-6 md:p-8 rounded-[32px] md:rounded-[40px] shadow-2xl text-left text-white group hover:scale-[1.02] transition-transform active:scale-95 border border-white/5 dark:border-slate-800/50"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                           <span className="text-[9px] font-black text-blue-400 dark:text-blue-300 uppercase tracking-widest opacity-60">Operação Manual</span>
+                           <Plus size={18} className="text-blue-500 dark:text-blue-400 group-hover:rotate-90 transition-transform" />
+                        </div>
+                        <h3 className="text-base md:text-lg font-black mb-1">Registrar pH</h3>
+                        <p className="text-[8px] md:text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Validar pureza do lote atual.</p>
+                     </button>
 
-                   <button 
-                      onClick={() => setShowMaintForm(true)}
-                      className="w-full bg-blue-600 dark:bg-blue-700 p-8 md:p-10 rounded-[32px] md:rounded-[44px] shadow-2xl text-left text-white group hover:scale-[1.02] transition-transform active:scale-95 border border-white/5 dark:border-slate-800/50"
-                    >
-                      <div className="flex items-center justify-between mb-3 md:mb-4">
-                         <span className="text-[10px] font-black text-blue-100 uppercase tracking-widest opacity-60">Manutenção</span>
-                         <Plus size={20} className="text-white group-hover:rotate-90 transition-transform" />
-                      </div>
-                      <h3 className="text-lg md:text-xl font-black mb-1 md:mb-2">Registrar Manutenção</h3>
-                      <p className="text-[9px] md:text-[10px] text-blue-100 font-bold uppercase tracking-widest">Controle preventivo do sistema.</p>
-                   </button>
+                     <button 
+                        onClick={() => setShowTDSForm(true)}
+                        className="w-full bg-emerald-600 dark:bg-emerald-700 p-6 md:p-8 rounded-[32px] md:rounded-[40px] shadow-2xl text-left text-white group hover:scale-[1.02] transition-transform active:scale-95 border border-white/5 dark:border-slate-800/50"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                           <span className="text-[9px] font-black text-emerald-100 uppercase tracking-widest opacity-60">Operação Manual</span>
+                           <Plus size={18} className="text-white group-hover:rotate-90 transition-transform" />
+                        </div>
+                        <h3 className="text-base md:text-lg font-black mb-1">Registrar TDS</h3>
+                        <p className="text-[8px] md:text-[9px] text-emerald-100 font-bold uppercase tracking-widest">Medir sólidos totais dissolvidos.</p>
+                     </button>
+
+                     <button 
+                        onClick={() => setShowMaintForm(true)}
+                        className="w-full bg-blue-600 dark:bg-blue-700 p-6 md:p-8 rounded-[32px] md:rounded-[40px] shadow-2xl text-left text-white group hover:scale-[1.02] transition-transform active:scale-95 border border-white/5 dark:border-slate-800/50"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                           <span className="text-[9px] font-black text-blue-100 uppercase tracking-widest opacity-60">Manutenção</span>
+                           <Plus size={18} className="text-white group-hover:rotate-90 transition-transform" />
+                        </div>
+                        <h3 className="text-base md:text-lg font-black mb-1">Registrar Manutenção</h3>
+                        <p className="text-[8px] md:text-[9px] text-blue-100 font-bold uppercase tracking-widest">Controle preventivo do sistema.</p>
+                     </button>
+                   </div>
                 </div>
               </div>
             </div>
@@ -987,6 +1068,65 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddMaintena
                 )}
               </div>
             </div>
+
+            {showPHForm && (
+              <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-6">
+                <div className="absolute inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-xl" onClick={() => setShowPHForm(false)} />
+                <div className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[40px] md:rounded-[64px] p-8 md:p-12 shadow-2xl animate-premium border border-white/40 dark:border-slate-800/40 text-center">
+                  <div className="flex justify-between items-center mb-8">
+                     <h3 className="text-xl font-black text-slate-900 dark:text-slate-100">Registrar pH</h3>
+                     <button onClick={() => setShowPHForm(false)} className="text-slate-300 dark:text-slate-600 p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full transition-all"><X size={24} /></button>
+                  </div>
+                  <form onSubmit={handlePHSubmit} className="space-y-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor do pH</label>
+                      <input 
+                        type="number" 
+                        step="0.01"
+                        value={phValue} 
+                        onChange={e => setPhValue(e.target.value)} 
+                        placeholder="Ex: 7.20"
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-6 text-3xl font-black text-center text-blue-600 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:outline-none" 
+                        required 
+                        autoFocus
+                      />
+                    </div>
+                    <button type="submit" className="w-full bg-blue-600 text-white font-black py-5 rounded-[24px] shadow-2xl transition-all text-sm tracking-widest active:scale-95">
+                      CONFIRMAR LEITURA
+                    </button>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {showTDSForm && (
+              <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-6">
+                <div className="absolute inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-xl" onClick={() => setShowTDSForm(false)} />
+                <div className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[40px] md:rounded-[64px] p-8 md:p-12 shadow-2xl animate-premium border border-white/40 dark:border-slate-800/40 text-center">
+                  <div className="flex justify-between items-center mb-8">
+                     <h3 className="text-xl font-black text-slate-900 dark:text-slate-100">Registrar TDS</h3>
+                     <button onClick={() => setShowTDSForm(false)} className="text-slate-300 dark:text-slate-600 p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full transition-all"><X size={24} /></button>
+                  </div>
+                  <form onSubmit={handleTDSSubmit} className="space-y-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor TDS (ppm)</label>
+                      <input 
+                        type="number" 
+                        value={tdsValue} 
+                        onChange={e => setTdsValue(e.target.value)} 
+                        placeholder="Ex: 85"
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-6 text-3xl font-black text-center text-emerald-600 focus:ring-4 focus:ring-emerald-100 dark:focus:ring-emerald-900/30 focus:outline-none" 
+                        required 
+                        autoFocus
+                      />
+                    </div>
+                    <button type="submit" className="w-full bg-emerald-600 text-white font-black py-5 rounded-[24px] shadow-2xl transition-all text-sm tracking-widest active:scale-95">
+                      CONFIRMAR LEITURA
+                    </button>
+                  </form>
+                </div>
+              </div>
+            )}
 
             {showMaintForm && (
               <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-6">

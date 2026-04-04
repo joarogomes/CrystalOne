@@ -23,10 +23,10 @@ const CustomTooltip = ({ active, payload, label }: any) => {
         <div className="space-y-3">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-blue-600"></div>
+              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: data.color }}></div>
               <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Vendas</span>
             </div>
-            <span className="text-sm font-black text-blue-600">+{sales.toLocaleString()} Kz</span>
+            <span className="text-sm font-black" style={{ color: data.color }}>+{sales.toLocaleString()} Kz</span>
           </div>
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
@@ -61,6 +61,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 interface DashboardProps {
   state: BusinessState;
   onQuickSell?: (itemId: string) => void;
+  onAddPH?: (value: number) => void;
+  onAddTDS?: (value: number) => void;
   accessLevel?: AccessLevel;
 }
 
@@ -71,12 +73,17 @@ const getLocalDateString = (date: Date = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, accessLevel = 'full' }) => {
+const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, onAddPH, onAddTDS, accessLevel = 'full' }) => {
   const [marketingTip, setMarketingTip] = useState<string | null>(null);
   const [loadingTip, setLoadingTip] = useState(false);
   const [isQuickSellExpanded, setIsQuickSellExpanded] = useState(true);
   const [timeFilter, setTimeFilter] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
+  const [customerFilter, setCustomerFilter] = useState<string>('Todos');
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [showPHModal, setShowPHModal] = useState(false);
+  const [showTDSModal, setShowTDSModal] = useState(false);
+  const [phValue, setPhValue] = useState('');
+  const [tdsValue, setTdsValue] = useState('');
   const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
 
   const todayStr = getLocalDateString();
@@ -89,6 +96,14 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, accessLevel =
   const totalInvestmentsAmount = state.transactions.filter(t => t.type === 'investment').reduce((sum, t) => sum + t.amount, 0);
   
   const currentBalance = totalSalesAmount - totalExpensesAmount - totalInvestmentsAmount;
+
+  const uniqueCustomers = useMemo(() => {
+    const customers = new Set<string>();
+    state.transactions.forEach(t => {
+      if (t.customer_name) customers.add(t.customer_name);
+    });
+    return ['Todos', ...Array.from(customers).sort()];
+  }, [state.transactions]);
 
   const fetchTip = async () => {
     setLoadingTip(true);
@@ -119,8 +134,13 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, accessLevel =
     const now = currentDate;
     const data: any[] = [];
     
+    const filteredTransactions = state.transactions.filter(t => {
+      if (customerFilter === 'Todos') return true;
+      return t.customer_name === customerFilter;
+    });
+
     const getSalesColor = (amount: number) => {
-      if (amount <= 0) return '#2563eb';
+      if (amount === 0) return '#e2e8f0';
       if (amount <= 17000) return '#ef4444';
       if (amount <= 25000) return '#f59e0b';
       return '#10b981';
@@ -138,7 +158,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, accessLevel =
         statsMap[dateStr] = { sales: 0, expenses: 0, investments: 0 };
       }
 
-      state.transactions.forEach(t => {
+      filteredTransactions.forEach(t => {
         const dateStr = getLocalDateString(new Date(t.created_at));
         if (statsMap[dateStr]) {
           if (t.type === 'sale') statsMap[dateStr].sales += t.amount;
@@ -169,7 +189,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, accessLevel =
         5: { sales: 0, expenses: 0, investments: 0 },
       };
       
-      state.transactions.forEach(t => {
+      filteredTransactions.forEach(t => {
         const td = new Date(t.created_at);
         if (td.getMonth() === now.getMonth() && td.getFullYear() === now.getFullYear()) {
           const day = td.getDate();
@@ -202,7 +222,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, accessLevel =
       const statsMap: Record<number, { sales: number, expenses: number, investments: number }> = {};
       const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
       
-      state.transactions.forEach(t => {
+      filteredTransactions.forEach(t => {
         const td = new Date(t.created_at);
         if (td.getFullYear() === now.getFullYear()) {
           const month = td.getMonth();
@@ -336,6 +356,29 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, accessLevel =
                         </div>
                       </button>
                     ))}
+                    
+                    {/* Quality Quick Actions */}
+                    <button 
+                      onClick={() => setShowPHModal(true)}
+                      className="bg-white dark:bg-slate-800 border border-blue-100 dark:border-blue-900/30 p-4 md:p-6 rounded-[24px] md:rounded-[32px] flex flex-col items-center text-center gap-2 hover:border-blue-500 active:scale-95 transition-all shadow-sm group/btn"
+                    >
+                      <span className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest truncate w-full">Registrar pH</span>
+                      <span className="text-xs font-black text-slate-400 dark:text-slate-500">Qualidade</span>
+                      <div className="mt-1 md:mt-2 w-8 h-8 md:w-10 md:h-10 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center group-hover/btn:bg-blue-600 group-hover/btn:text-white transition-colors">
+                        <Plus size={16} />
+                      </div>
+                    </button>
+
+                    <button 
+                      onClick={() => setShowTDSModal(true)}
+                      className="bg-white dark:bg-slate-800 border border-emerald-100 dark:border-emerald-900/30 p-4 md:p-6 rounded-[24px] md:rounded-[32px] flex flex-col items-center text-center gap-2 hover:border-emerald-500 active:scale-95 transition-all shadow-sm group/btn"
+                    >
+                      <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest truncate w-full">Registrar TDS</span>
+                      <span className="text-xs font-black text-slate-400 dark:text-slate-500">Qualidade</span>
+                      <div className="mt-1 md:mt-2 w-8 h-8 md:w-10 md:h-10 bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center group-hover/btn:bg-emerald-600 group-hover/btn:text-white transition-colors">
+                        <Plus size={16} />
+                      </div>
+                    </button>
                   </div>
                 </motion.div>
               )}
@@ -376,11 +419,25 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, accessLevel =
               <Calendar size={20} className="text-blue-500" />
               {accessLevel === 'full' ? 'Evolução Financeira CrystalOne' : 'Evolução de Vendas CrystalOne'}
             </h3>
-            <div className="flex items-center gap-4 mt-1">
+            <div className="flex flex-wrap items-center gap-4 mt-2">
               <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">
                 {timeFilter === 'weekly' ? `Semana de ${currentDate.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}` : timeFilter === 'monthly' ? `${currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}` : `Ano de ${currentDate.getFullYear()}`}
               </p>
-              <div className="flex items-center gap-2 ml-4">
+              
+              <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-2xl border border-slate-200 dark:border-slate-700">
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Cliente:</span>
+                <select 
+                  value={customerFilter}
+                  onChange={(e) => setCustomerFilter(e.target.value)}
+                  className="bg-transparent text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest focus:outline-none cursor-pointer"
+                >
+                  {uniqueCustomers.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1 mr-2">
                   {timeFilter === 'monthly' && (
                     <div className="relative">
@@ -521,7 +578,20 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, accessLevel =
                     dataKey="sales" 
                     stroke="#3b82f6" 
                     strokeWidth={2} 
-                    dot={{ r: 2, fill: '#3b82f6', strokeWidth: 1, stroke: '#fff' }}
+                    dot={(props: any) => {
+                      const { cx, cy, payload } = props;
+                      return (
+                        <circle 
+                          key={`dot-sales-${payload.label}`}
+                          cx={cx} 
+                          cy={cy} 
+                          r={3} 
+                          fill={payload.color} 
+                          stroke="#fff" 
+                          strokeWidth={1} 
+                        />
+                      );
+                    }}
                     activeDot={{ r: 4, strokeWidth: 0 }}
                     animationDuration={1500}
                   />
@@ -564,7 +634,21 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, accessLevel =
                       dataKey="profit" 
                       stroke="#10b981" 
                       strokeWidth={3}
-                      dot={{ r: 3, fill: '#10b981', strokeWidth: 1, stroke: '#fff' }}
+                      dot={(props: any) => {
+                        const { cx, cy, payload } = props;
+                        const isProfitable = payload.profit >= 0;
+                        return (
+                          <circle 
+                            key={`dot-profit-${payload.label}`}
+                            cx={cx} 
+                            cy={cy} 
+                            r={4} 
+                            fill={isProfitable ? '#10b981' : '#ef4444'} 
+                            stroke="#fff" 
+                            strokeWidth={1} 
+                          />
+                        );
+                      }}
                       activeDot={{ r: 5, strokeWidth: 0 }}
                       animationDuration={1500}
                     />
@@ -575,6 +659,113 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, accessLevel =
           </ResponsiveContainer>
         </motion.div>
       </div>
+
+      {/* pH Modal */}
+      <AnimatePresence>
+        {showPHModal && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-xl" 
+              onClick={() => setShowPHModal(false)} 
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[40px] md:rounded-[64px] p-8 md:p-12 shadow-2xl border border-white/40 dark:border-slate-800/40 text-center"
+            >
+              <div className="flex justify-between items-center mb-8">
+                 <h3 className="text-xl font-black text-slate-900 dark:text-slate-100">Registrar pH</h3>
+                 <button onClick={() => setShowPHModal(false)} className="text-slate-300 dark:text-slate-600 p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full transition-all">
+                   <Plus size={24} className="rotate-45" />
+                 </button>
+              </div>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const val = parseFloat(phValue);
+                if (!isNaN(val)) {
+                  onAddPH?.(val);
+                  setPhValue('');
+                  setShowPHModal(false);
+                }
+              }} className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor do pH</label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    value={phValue} 
+                    onChange={e => setPhValue(e.target.value)} 
+                    placeholder="Ex: 7.20"
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-6 text-3xl font-black text-center text-blue-600 focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:outline-none" 
+                    required 
+                    autoFocus
+                  />
+                </div>
+                <button type="submit" className="w-full bg-blue-600 text-white font-black py-5 rounded-[24px] shadow-2xl transition-all text-sm tracking-widest active:scale-95">
+                  CONFIRMAR LEITURA
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* TDS Modal */}
+      <AnimatePresence>
+        {showTDSModal && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-xl" 
+              onClick={() => setShowTDSModal(false)} 
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-[40px] md:rounded-[64px] p-8 md:p-12 shadow-2xl border border-white/40 dark:border-slate-800/40 text-center"
+            >
+              <div className="flex justify-between items-center mb-8">
+                 <h3 className="text-xl font-black text-slate-900 dark:text-slate-100">Registrar TDS</h3>
+                 <button onClick={() => setShowTDSModal(false)} className="text-slate-300 dark:text-slate-600 p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full transition-all">
+                   <Plus size={24} className="rotate-45" />
+                 </button>
+              </div>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const val = parseFloat(tdsValue);
+                if (!isNaN(val)) {
+                  onAddTDS?.(val);
+                  setTdsValue('');
+                  setShowTDSModal(false);
+                }
+              }} className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor TDS (ppm)</label>
+                  <input 
+                    type="number" 
+                    value={tdsValue} 
+                    onChange={e => setTdsValue(e.target.value)} 
+                    placeholder="Ex: 85"
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl p-6 text-3xl font-black text-center text-emerald-600 focus:ring-4 focus:ring-emerald-100 dark:focus:ring-emerald-900/30 focus:outline-none" 
+                    required 
+                    autoFocus
+                  />
+                </div>
+                <button type="submit" className="w-full bg-emerald-600 text-white font-black py-5 rounded-[24px] shadow-2xl transition-all text-sm tracking-widest active:scale-95">
+                  CONFIRMAR LEITURA
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

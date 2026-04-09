@@ -72,7 +72,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory, movements, onU
     <div className="space-y-10 animate-premium">
       <div className="flex items-center justify-between gap-6">
         <div className="flex flex-col">
-          <h2 className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Estoque CrystalOne</h2>
+          <h2 className="text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Estoque Água Cristalina</h2>
           <p className="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-[0.3em] mt-2">Visão Estratégica de Insumos</p>
         </div>
         <button 
@@ -254,7 +254,7 @@ const InventoryView: React.FC<InventoryViewProps> = ({ inventory, movements, onU
           <div className="absolute inset-0 bg-slate-900/40 dark:bg-slate-950/60 backdrop-blur-xl" onClick={() => setNewItemModal(false)} />
           <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[40px] md:rounded-[64px] p-8 md:p-12 shadow-2xl animate-premium border border-white/40 dark:border-slate-800/40">
              <div className="flex justify-between items-center mb-8 md:mb-10">
-                <h3 className="text-xl md:text-2xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Novo Insumo CrystalOne</h3>
+                <h3 className="text-xl md:text-2xl font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">Novo Insumo Água Cristalina</h3>
                 <button onClick={() => setNewItemModal(false)} className="p-2 text-slate-300 dark:text-slate-600 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"><X size={28}/></button>
              </div>
              <form onSubmit={handleCreateItem} className="space-y-6">

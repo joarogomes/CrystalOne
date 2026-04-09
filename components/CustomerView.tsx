@@ -58,6 +58,22 @@ const CustomerView: React.FC<CustomerViewProps> = ({
     return transactions.filter(t => t.customer_id === selectedCustomer.id);
   }, [transactions, selectedCustomer]);
 
+  const totalItemsBought = useMemo(() => {
+    return customerTransactions
+      .filter(t => t.type === 'sale')
+      .reduce((sum, t) => sum + (t.quantity || 0), 0);
+  }, [customerTransactions]);
+
+  const productBreakdown = useMemo(() => {
+    const breakdown: Record<string, number> = {};
+    customerTransactions
+      .filter(t => t.type === 'sale')
+      .forEach(t => {
+        breakdown[t.category] = (breakdown[t.category] || 0) + (t.quantity || 0);
+      });
+    return Object.entries(breakdown).map(([name, qty]) => ({ name, qty }));
+  }, [customerTransactions]);
+
   useEffect(() => {
     if (showWithdrawModal && !selectedWithdrawProductId) {
       const defaultProduct = inventory.find(i => i.name.toLowerCase().includes('água'));
@@ -157,7 +173,7 @@ const CustomerView: React.FC<CustomerViewProps> = ({
       await onAddTransaction({
         store_id: activeStoreId,
         type: 'prepayment',
-        category: 'Adiantamento de Cliente',
+        category: 'Venda Adiantada',
         amount: amount,
         description: `Depósito antecipado: ${selectedCustomer.name}`,
         quantity: 1,
@@ -340,17 +356,17 @@ const CustomerView: React.FC<CustomerViewProps> = ({
                           <Droplets size={20} />
                           <span>Saída</span>
                         </button>
-                        <button 
-                          onClick={() => setShowDepositModal(true)}
-                          className="flex items-center gap-3 px-6 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black shadow-xl shadow-emerald-200 dark:shadow-emerald-900/20 transition-all active:scale-95"
-                        >
-                          <Plus size={20} />
-                          <span>Depositar Saldo</span>
-                        </button>
+                          <button 
+                            onClick={() => setShowDepositModal(true)}
+                            className="flex items-center gap-3 px-6 py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black shadow-xl shadow-emerald-200 dark:shadow-emerald-900/20 transition-all active:scale-95"
+                          >
+                            <Plus size={20} />
+                            <span>Venda Adiantada</span>
+                          </button>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-10">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-10">
                       <div className="p-6 bg-white dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-700">
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Saldo Atual</span>
                         <div className="flex items-baseline gap-2">
@@ -364,10 +380,33 @@ const CustomerView: React.FC<CustomerViewProps> = ({
                           <span className="text-4xl font-black tracking-tight text-slate-900 dark:text-white">
                             {customerTransactions.filter(t => t.type === 'sale').length}
                           </span>
-                          <span className="text-sm font-black text-slate-400 uppercase">Quantidade</span>
+                          <span className="text-sm font-black text-slate-400 uppercase">Vendas</span>
+                        </div>
+                      </div>
+                      <div className="p-6 bg-white dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-700">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Total de Produtos</span>
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-4xl font-black tracking-tight text-blue-600">
+                            {totalItemsBought}
+                          </span>
+                          <span className="text-sm font-black text-slate-400 uppercase">Itens</span>
                         </div>
                       </div>
                     </div>
+
+                    {productBreakdown.length > 0 && (
+                      <div className="mt-8 p-6 bg-blue-50/50 dark:bg-blue-900/10 rounded-[32px] border border-blue-100 dark:border-blue-900/30">
+                        <h5 className="text-xs font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-4">Produtos Adquiridos</h5>
+                        <div className="flex flex-wrap gap-3">
+                          {productBreakdown.map((item, idx) => (
+                            <div key={idx} className="px-4 py-2 bg-white dark:bg-slate-900 rounded-xl border border-blue-100 dark:border-blue-900/30 flex items-center gap-2">
+                              <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{item.name}:</span>
+                              <span className="text-sm font-black text-blue-600">{item.qty}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -393,7 +432,14 @@ const CustomerView: React.FC<CustomerViewProps> = ({
                               {t.type === 'prepayment' ? <ArrowUpRight size={24} /> : <ArrowDownRight size={24} />}
                             </div>
                             <div>
-                              <h5 className="font-black text-slate-900 dark:text-white">{t.category}</h5>
+                              <div className="flex items-center gap-2">
+                                <h5 className="font-black text-slate-900 dark:text-white">{t.category}</h5>
+                                <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md ${
+                                  t.type === 'prepayment' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40'
+                                }`}>
+                                  {t.type === 'prepayment' ? 'Depósito' : 'Saída'}
+                                </span>
+                              </div>
                               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">
                                 {new Date(t.created_at).toLocaleString()} • {t.payment_method}
                               </p>
@@ -675,15 +721,15 @@ const CustomerView: React.FC<CustomerViewProps> = ({
             className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-[40px] shadow-2xl overflow-hidden"
           >
             <div className="p-10">
-              <div className="flex items-center gap-4 mb-8">
-                <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center text-emerald-600">
-                  <Wallet size={32} />
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center text-emerald-600">
+                    <Wallet size={32} />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Venda Adiantada (Depósito)</h3>
+                    <p className="text-slate-500 font-medium text-sm">Adicionar crédito para {selectedCustomer?.name}</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Depositar Saldo</h3>
-                  <p className="text-slate-500 font-medium text-sm">Adicionar crédito para {selectedCustomer?.name}</p>
-                </div>
-              </div>
               <form onSubmit={handleDeposit} className="space-y-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Valor do Depósito (Kz)</label>

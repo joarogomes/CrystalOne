@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Database, Copy, CheckCircle2, Terminal, ExternalLink, AlertCircle } from 'lucide-react';
 
-const SQL_SCRIPT = `-- SQL de Retificação e Inicialização do CrystalOne no Supabase
+const SQL_SCRIPT = `-- SQL de Retificação e Inicialização do Água Cristalina no Supabase
 -- ATENÇÃO: Se desejar apagar tudo e recomeçar do zero, descomente as linhas DROP abaixo.
 
 -- DROP TABLE IF EXISTS public.maintenance_records CASCADE;

@@ -45,7 +45,7 @@ const Layout: React.FC<LayoutProps> = ({
   const [showNotifications, setShowNotifications] = useState(false);
   const [viewTransition, setViewTransition] = useState(false);
   const [isDesktopMode, setIsDesktopMode] = useState(() => {
-    return localStorage.getItem('crystalone_view_mode') === 'desktop';
+    return localStorage.getItem('aguacristalina_view_mode') === 'desktop';
   });
 
   const activeStore = stores.find(s => s.id === activeStoreId) || stores[0] || { name: 'Minha Unidade' };
@@ -65,7 +65,7 @@ const Layout: React.FC<LayoutProps> = ({
   const toggleViewMode = () => {
     const newMode = !isDesktopMode;
     setIsDesktopMode(newMode);
-    localStorage.setItem('crystalone_view_mode', newMode ? 'desktop' : 'mobile');
+    localStorage.setItem('aguacristalina_view_mode', newMode ? 'desktop' : 'mobile');
   };
 
   const activeIndex = filteredNavItems.findIndex(item => item.id === activeView);
@@ -75,17 +75,27 @@ const Layout: React.FC<LayoutProps> = ({
       
       {/* HEADER */}
       <header className="px-6 py-5 flex items-center justify-between sticky top-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-lg z-50 border-b border-blue-100 dark:border-slate-800 transition-colors">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200 dark:shadow-blue-900/20 animate-float">
-            <Droplets className="text-white" size={20} />
+        <div className="flex items-center gap-4">
+          <div className="relative w-12 h-12 flex items-center justify-center">
+            <div className="absolute inset-0 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-2xl rotate-12 opacity-20 animate-pulse" />
+            <div className="relative w-10 h-10 bg-white dark:bg-slate-800 rounded-xl flex items-center justify-center shadow-sm border border-blue-50 dark:border-slate-700">
+              <Droplets className="text-blue-500" size={24} fill="currentColor" fillOpacity={0.2} />
+            </div>
           </div>
           <div className="flex flex-col">
-            <h1 className="font-black text-slate-900 dark:text-white text-lg leading-none">CrystalOne</h1>
+            <div className="flex items-baseline gap-1">
+              <span className="text-slate-400 dark:text-slate-500 font-medium text-lg tracking-tight">Água</span>
+              <span className="text-cyan-600 dark:text-cyan-400 font-black text-xl tracking-tighter">Cristalina</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[8px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.3em] leading-none">Pureza & Gestão</span>
+              <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800" />
+            </div>
             <button 
               onClick={() => setShowStoreSwitcher(true)}
-              className="flex items-center gap-1 mt-1 active:scale-95 transition-transform"
+              className="flex items-center gap-1 mt-1 active:scale-95 transition-transform self-start"
             >
-              <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-widest truncate max-w-[120px]">
+              <span className="text-[9px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-widest truncate max-w-[120px]">
                 {activeStore.name}
               </span>
               <ChevronDown size={10} className="text-blue-600 dark:text-blue-400" />
@@ -237,13 +247,13 @@ const Layout: React.FC<LayoutProps> = ({
               <h3 className="font-black text-slate-900 dark:text-white text-lg uppercase tracking-widest">Configurações da Unidade</h3>
               <div className="md:hidden flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
                  <button 
-                  onClick={() => { setIsDesktopMode(false); localStorage.setItem('crystalone_view_mode', 'mobile'); }}
+                  onClick={() => { setIsDesktopMode(false); localStorage.setItem('aguacristalina_view_mode', 'mobile'); }}
                   className={`p-2 rounded-lg transition-all ${!isDesktopMode ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-400'}`}
                  >
                    <Smartphone size={16} />
                  </button>
                  <button 
-                  onClick={() => { setIsDesktopMode(true); localStorage.setItem('crystalone_view_mode', 'desktop'); }}
+                  onClick={() => { setIsDesktopMode(true); localStorage.setItem('aguacristalina_view_mode', 'desktop'); }}
                   className={`p-2 rounded-lg transition-all ${isDesktopMode ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-400'}`}
                  >
                    <Monitor size={16} />

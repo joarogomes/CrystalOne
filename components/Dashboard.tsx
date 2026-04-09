@@ -373,10 +373,18 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, onAddPH, onAd
                 </div>
 
                 {todayDepositsTotal > 0 && (
-                  <div className="flex items-center gap-4 bg-blue-50/70 dark:bg-blue-950/30 p-4 md:p-6 rounded-2xl md:rounded-3xl border border-blue-100 dark:border-blue-900/30">
+                  <div className="flex items-center gap-4 bg-blue-50/70 dark:bg-blue-950/30 p-4 md:p-6 rounded-2xl md:rounded-3xl border border-blue-100 dark:border-blue-900/30 relative group/info">
                      <Wallet size={20} className="text-blue-500" />
                      <div className="flex flex-col">
-                       <span className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">Depósitos Hoje</span>
+                       <div className="flex items-center gap-1">
+                         <span className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">Vendas Adiantadas Hoje</span>
+                         <div className="relative">
+                           <AlertCircle size={10} className="text-blue-400 cursor-help" />
+                           <div className="absolute bottom-full left-0 mb-2 w-48 p-3 bg-slate-900 text-white text-[9px] rounded-xl opacity-0 group-hover/info:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl border border-white/10">
+                             Dinheiro que entrou hoje como depósito/crédito de clientes. Já contabilizado no caixa de hoje.
+                           </div>
+                         </div>
+                       </div>
                        <span className="text-lg md:text-xl font-black text-slate-800 dark:text-slate-200">+{todayDepositsTotal.toLocaleString()} Kz</span>
                      </div>
                   </div>
@@ -467,7 +475,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, onAddPH, onAd
               <Sparkles size={32} />
             </div>
             <div className="flex flex-col text-center md:text-left">
-              <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-[0.4em] mb-2">Dica de Marketing CrystalOne</span>
+              <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-[0.4em] mb-2">Dica de Marketing Água Cristalina</span>
               <p className="text-slate-800 dark:text-slate-200 font-bold text-sm md:text-base leading-relaxed italic">"{marketingTip}"</p>
             </div>
             <button 
@@ -488,7 +496,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, onAddPH, onAd
           <div className="flex flex-col">
             <h3 className="text-slate-900 dark:text-slate-100 font-extrabold text-lg md:text-xl tracking-tight flex items-center gap-3">
               <Calendar size={20} className="text-blue-500" />
-              {accessLevel === 'full' ? 'Evolução Financeira CrystalOne' : 'Evolução de Vendas CrystalOne'}
+              {accessLevel === 'full' ? 'Evolução Financeira Água Cristalina' : 'Evolução de Vendas Água Cristalina'}
             </h3>
             <div className="flex flex-wrap items-center gap-4 mt-2">
               <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">

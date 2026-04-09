@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import TransactionForm from './components/TransactionForm';
@@ -35,7 +35,7 @@ const App: React.FC = () => {
   const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([]);
   const [isTestingDb, setIsTestingDb] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
-    return localStorage.getItem('crystalone_theme') === 'dark';
+    return localStorage.getItem('aguacristalina_theme') === 'dark';
   });
 
   useEffect(() => {
@@ -44,7 +44,7 @@ const App: React.FC = () => {
     } else {
       document.documentElement.classList.remove('dark');
     }
-    localStorage.setItem('crystalone_theme', isDarkMode ? 'dark' : 'light');
+    localStorage.setItem('aguacristalina_theme', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
 
   useEffect(() => {
@@ -98,7 +98,18 @@ const App: React.FC = () => {
     }
   }, [isAuthenticated]);
 
-  const fetchStores = async () => {
+  const handleLogin = useCallback((level: AccessLevel) => {
+    setAccessLevel(level);
+    setIsAuthenticated(true);
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    setIsAuthenticated(false);
+    setStores([]);
+    setActiveStoreId(null);
+  }, []);
+
+  const fetchStores = useCallback(async () => {
     try {
       const { data, error } = await supabase.from('stores').select('*').order('name');
       
@@ -106,13 +117,13 @@ const App: React.FC = () => {
 
       if (data && data.length > 0) {
         setStores(data);
-        const lastId = localStorage.getItem('c1_active_id');
+        const lastId = localStorage.getItem('aguacristalina_active_id');
         const validId = lastId && data.find(s => s.id === lastId) ? lastId : data[0].id;
         setActiveStoreId(validId);
       } else {
         const { data: newStore, error: createError } = await supabase
           .from('stores')
-          .insert([{ name: 'CrystalOne - Unidade Principal' }])
+          .insert([{ name: 'Água Cristalina - Unidade Principal' }])
           .select()
           .single();
         
@@ -135,7 +146,7 @@ const App: React.FC = () => {
     } finally {
       setIsInitialLoading(false);
     }
-  };
+  }, []);
 
   const loadData = useCallback(async () => {
     if (!activeStoreId || !isAuthenticated) return;
@@ -264,7 +275,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleAddTransaction = async (newT: Omit<Transaction, 'id' | 'created_at' | 'store_id'> & { created_at?: string }) => {
+  const handleAddTransaction = useCallback(async (newT: Omit<Transaction, 'id' | 'created_at' | 'store_id'> & { created_at?: string }) => {
     console.log("Iniciando handleAddTransaction com:", newT);
     try {
       // Auto-create customer if name provided but no ID
@@ -302,7 +313,7 @@ const App: React.FC = () => {
         if (balanceError) throw balanceError;
         
         // Atualizar estado local dos clientes
-        setCustomers(prev => prev.map(c => c.id === newT.customer_id ? { ...c, balance: newBalance } : c));
+        setCustomers(prev => prev.map(c => c.id === finalCustomerId ? { ...c, balance: newBalance } : c));
 
         // Se o saldo ficou negativo, enviar notificação
         if (newBalance < 0) {
@@ -340,7 +351,7 @@ const App: React.FC = () => {
           id: crypto.randomUUID(),
           store_id: activeStoreId || '',
           title: 'Registro Sucesso',
-          message: `${newT.type === 'sale' ? 'Venda' : newT.type === 'expense' ? 'Despesa' : newT.type === 'prepayment' ? 'Adiantamento' : 'Investimento'} de ${newT.amount.toLocaleString()} Kz registrada.`,
+          message: `${newT.type === 'sale' ? 'Venda' : newT.type === 'expense' ? 'Despesa' : newT.type === 'prepayment' ? 'Venda Adiantada' : 'Investimento'} de ${newT.amount.toLocaleString()} Kz registrada.`,
           type: 'info',
           read: false,
           created_at: new Date().toISOString()
@@ -349,11 +360,14 @@ const App: React.FC = () => {
       return data;
     } catch (err: any) {
       console.error("Erro ao salvar transação:", err);
+      const isPermissionError = err.message?.includes('permission') || err.code === '403' || err.status === 403;
       setToast({
         id: crypto.randomUUID(),
         store_id: activeStoreId || '',
-        title: 'Erro de Sincronização',
-        message: `Falha ao salvar no banco: ${err.message || 'Erro de rede'}. Verifique se a coluna 'payment_method' existe na tabela 'transactions'.`,
+        title: isPermissionError ? 'Erro de Permissão (RLS)' : 'Erro de Sincronização',
+        message: isPermissionError 
+          ? 'O banco recusou a gravação. Verifique as políticas RLS no Supabase para esta tabela.'
+          : `Falha ao salvar no banco: ${err.message || 'Erro de rede'}.`,
         type: 'danger',
         read: false,
         created_at: new Date().toISOString()
@@ -367,9 +381,9 @@ const App: React.FC = () => {
       setTransactions(prev => [fallback, ...prev]);
       return fallback;
     }
-  };
+  }, [activeStoreId, customers]);
 
-  const handleUpdateInventory = async (id: string, delta: number, paymentMethod: PaymentMethod = 'Consolidada', customerId?: string) => {
+  const handleUpdateInventory = useCallback(async (id: string, delta: number, paymentMethod: PaymentMethod = 'Consolidada', customerId?: string) => {
     const item = inventory.find(i => i.id === id);
     if (!item) return;
 
@@ -385,7 +399,7 @@ const App: React.FC = () => {
           type: 'sale',
           category: item.name,
           amount: totalSaleAmount,
-          description: `Venda via CrystalOne: ${item.name} (${quantitySold} ${item.unit})`,
+          description: `Venda via Água Cristalina: ${item.name} (${quantitySold} ${item.unit})`,
           quantity: quantitySold,
           payment_method: paymentMethod,
           customer_id: customerId
@@ -417,19 +431,22 @@ const App: React.FC = () => {
       if (moveError) throw moveError;
     } catch (err: any) {
       console.error("Erro ao sincronizar estoque:", err);
+      const isPermissionError = err.message?.includes('permission') || err.code === '403' || err.status === 403;
       setToast({
         id: crypto.randomUUID(),
         store_id: activeStoreId || '',
-        title: 'Erro de Estoque',
-        message: `Falha ao sincronizar estoque com o servidor: ${err.message || 'Erro de rede'}`,
+        title: isPermissionError ? 'Erro de Permissão (RLS)' : 'Erro de Estoque',
+        message: isPermissionError
+          ? 'O banco recusou a atualização do estoque. Verifique as políticas RLS no Supabase.'
+          : `Falha ao sincronizar estoque com o servidor: ${err.message || 'Erro de rede'}`,
         type: 'danger',
         read: false,
         created_at: new Date().toISOString()
       });
     }
-  };
+  }, [inventory, activeStoreId, handleAddTransaction]);
 
-  const handleAddPHRecord = async (value: number) => {
+  const handleAddPHRecord = useCallback(async (value: number) => {
     let status: 'Ideal' | 'Alerta' | 'Crítico' = 'Ideal';
     if (value < 6.5 || value > 8.0) status = 'Crítico';
     else if ((value >= 6.5 && value < 6.8) || (value > 7.5 && value <= 8.0)) status = 'Alerta';
@@ -470,9 +487,9 @@ const App: React.FC = () => {
         created_at: new Date().toISOString()
       });
     }
-  };
+  }, [activeStoreId]);
 
-  const handleAddTDSRecord = async (value: number) => {
+  const handleAddTDSRecord = useCallback(async (value: number) => {
     let status: 'Ideal' | 'Alerta' | 'Crítico' = 'Ideal';
     // Faixas típicas para água mineral/purificada (exemplo)
     if (value > 150) status = 'Crítico';
@@ -514,9 +531,9 @@ const App: React.FC = () => {
         created_at: new Date().toISOString()
       });
     }
-  };
+  }, [activeStoreId]);
 
-  const handleAddMaintenance = async (maint: Omit<MaintenanceRecord, 'id' | 'store_id' | 'created_at'>) => {
+  const handleAddMaintenance = useCallback(async (maint: Omit<MaintenanceRecord, 'id' | 'store_id' | 'created_at'>) => {
     try {
       const { data, error } = await supabase.from('maintenance_records').insert([{
         ...maint,
@@ -549,9 +566,9 @@ const App: React.FC = () => {
         created_at: new Date().toISOString()
       });
     }
-  };
+  }, [activeStoreId]);
 
-  const handleAddCustomer = async (customer: Omit<Customer, 'id' | 'created_at' | 'store_id'>) => {
+  const handleAddCustomer = useCallback(async (customer: Omit<Customer, 'id' | 'created_at' | 'store_id'>) => {
     try {
       const { data, error } = await supabase
         .from('customers')
@@ -587,9 +604,9 @@ const App: React.FC = () => {
       });
       throw err;
     }
-  };
+  }, [activeStoreId]);
 
-  const handleUpdateCustomer = async (id: string, updates: Partial<Customer>) => {
+  const handleUpdateCustomer = useCallback(async (id: string, updates: Partial<Customer>) => {
     try {
       const { data, error } = await supabase
         .from('customers')
@@ -626,9 +643,9 @@ const App: React.FC = () => {
       });
       throw err;
     }
-  };
+  }, [activeStoreId]);
 
-  const handleAddInventoryItem = async (newItem: Omit<InventoryItem, 'id' | 'store_id' | 'created_at'>) => {
+  const handleAddInventoryItem = useCallback(async (newItem: Omit<InventoryItem, 'id' | 'store_id' | 'created_at'>) => {
     try {
       const { data, error } = await supabase
         .from('inventory_items')
@@ -662,14 +679,62 @@ const App: React.FC = () => {
         created_at: new Date().toISOString()
       });
     }
-  };
+  }, [activeStoreId]);
+
+  const handleAddStore = useCallback(async (name: string) => {
+    try {
+      const { data, error } = await supabase.from('stores').insert([{ name }]).select().single();
+      if (error) throw error;
+      if (data) {
+        setStores(prev => [...prev, data]);
+        setToast({
+          id: crypto.randomUUID(),
+          store_id: data.id,
+          title: 'Unidade Criada',
+          message: `A unidade ${name} foi criada com sucesso.`,
+          type: 'info',
+          read: false,
+          created_at: new Date().toISOString()
+        });
+      }
+    } catch (err: any) {
+      console.error("Erro ao criar unidade:", err);
+      setToast({
+        id: crypto.randomUUID(),
+        store_id: activeStoreId || '',
+        title: 'Erro de Criação',
+        message: `Falha ao criar nova unidade: ${err.message || 'Erro de rede'}`,
+        type: 'danger',
+        read: false,
+        created_at: new Date().toISOString()
+      });
+    }
+  }, [activeStoreId]);
+
+  const handleMarkNotificationRead = useCallback((id: string) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  }, []);
+
+  const handleToggleDarkMode = useCallback(() => {
+    setIsDarkMode(prev => !prev);
+  }, []);
+
+  const state: BusinessState = useMemo(() => ({
+    transactions,
+    inventory,
+    phRecords,
+    tdsRecords,
+    inventoryMovements,
+    maintenanceRecords,
+    customers
+  }), [transactions, inventory, phRecords, tdsRecords, inventoryMovements, maintenanceRecords, customers]);
 
   if (isInitialLoading) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-slate-950">
         <div className="flex flex-col items-center gap-6">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-          <span className="text-blue-500 font-black text-[10px] uppercase tracking-widest">CrystalOne Cloud</span>
+          <span className="text-blue-500 font-black text-[10px] uppercase tracking-widest">Água Cristalina Cloud</span>
         </div>
       </div>
     );
@@ -702,10 +767,7 @@ const App: React.FC = () => {
   }
 
   if (!isAuthenticated) {
-    return <LoginPin onSuccess={(level) => {
-      setAccessLevel(level);
-      setIsAuthenticated(true);
-    }} />;
+    return <LoginPin onSuccess={handleLogin} />;
   }
 
   return (
@@ -718,48 +780,18 @@ const App: React.FC = () => {
       onSwitchStore={setActiveStoreId}
       dbStatus={dbStatus}
       isDarkMode={isDarkMode}
-      onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+      onToggleDarkMode={handleToggleDarkMode}
       notifications={notifications}
-      onMarkNotificationRead={(id) => setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))}
-      onAddStore={async (name) => {
-        try {
-          const { data, error } = await supabase.from('stores').insert([{ name }]).select().single();
-          if (error) throw error;
-          if (data) {
-            setStores(prev => [...prev, data]);
-            setToast({
-              id: crypto.randomUUID(),
-              store_id: data.id,
-              title: 'Unidade Criada',
-              message: `A unidade ${name} foi criada com sucesso.`,
-              type: 'info',
-              read: false,
-              created_at: new Date().toISOString()
-            });
-          }
-        } catch (err: any) {
-          console.error("Erro ao criar unidade:", err);
-          setToast({
-            id: crypto.randomUUID(),
-            store_id: activeStoreId || '',
-            title: 'Erro de Criação',
-            message: `Falha ao criar nova unidade: ${err.message || 'Erro de rede'}`,
-            type: 'danger',
-            read: false,
-            created_at: new Date().toISOString()
-          });
-        }
-      }}
-      onLogout={async () => {
-        setIsAuthenticated(false);
-      }}
+      onMarkNotificationRead={handleMarkNotificationRead}
+      onAddStore={handleAddStore}
+      onLogout={handleLogout}
       onTestDb={testSupabaseWrite}
       isTestingDb={isTestingDb}
     >
       <div className="pb-8">
         {activeView === 'dashboard' && (
           <Dashboard 
-            state={{ transactions, inventory, inventoryMovements, phRecords, tdsRecords, maintenanceRecords }} 
+            state={state} 
             onQuickSell={(itemId) => handleUpdateInventory(itemId, -1)}
             onAddPH={handleAddPHRecord}
             onAddTDS={handleAddTDSRecord}
@@ -802,10 +834,10 @@ const App: React.FC = () => {
             onUpdateInventory={handleUpdateInventory}
           />
         )}
-        {activeView === 'inventory' && <InventoryView inventory={inventory} movements={inventoryMovements} onUpdate={handleUpdateInventory} onAddItem={handleAddInventoryItem} />}
+        {activeView === 'inventory' && <InventoryView inventory={inventory} movements={inventoryMovements} onUpdateQuantity={handleUpdateInventory} onAddItem={handleAddInventoryItem} />}
         {activeView === 'reports' && (
           <ReportsView 
-            state={{ transactions, inventory, inventoryMovements, phRecords, tdsRecords, maintenanceRecords }} 
+            state={state} 
             onAddPH={handleAddPHRecord} 
             onAddTDS={handleAddTDSRecord}
             onAddMaintenance={handleAddMaintenance}
@@ -815,7 +847,7 @@ const App: React.FC = () => {
         )}
         {activeView === 'quality' && (
           <ReportsView 
-            state={{ transactions, inventory, inventoryMovements, phRecords, tdsRecords, maintenanceRecords }} 
+            state={state} 
             onAddPH={handleAddPHRecord} 
             onAddTDS={handleAddTDSRecord}
             onAddMaintenance={handleAddMaintenance}

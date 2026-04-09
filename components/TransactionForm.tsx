@@ -763,21 +763,40 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
               {activeType === 'sale' && (
                 <div className="space-y-3">
                   <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] px-2">Cliente</label>
-                  <div className="relative">
-                    <select 
-                      value={selectedCustomerId} 
-                      onChange={e => {
-                        setSelectedCustomerId(e.target.value);
-                        if (e.target.value === '') setPaymentMethod('Consolidada');
-                      }} 
-                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-6 py-5 pl-14 text-slate-900 dark:text-slate-100 font-bold focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:outline-none appearance-none"
-                    >
-                      <option value="">Consumidor Final (Sem cadastro)</option>
-                      {customers.map(c => (
-                        <option key={c.id} value={c.id}>{c.name} ({c.phone})</option>
-                      ))}
-                    </select>
-                    <User className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                  <div className="space-y-3">
+                    <div className="relative">
+                      <select 
+                        value={selectedCustomerId} 
+                        onChange={e => {
+                          setSelectedCustomerId(e.target.value);
+                          if (e.target.value === '') setPaymentMethod('Consolidada');
+                          else setCustomerName(''); // Clear manual name if selecting existing
+                        }} 
+                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-6 py-5 pl-14 text-slate-900 dark:text-slate-100 font-bold focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:outline-none appearance-none"
+                      >
+                        <option value="">Consumidor Final / Novo Cliente</option>
+                        {customers.map(c => (
+                          <option key={c.id} value={c.id}>{c.name} ({c.phone})</option>
+                        ))}
+                      </select>
+                      <User className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                    </div>
+
+                    {!selectedCustomerId && (
+                      <div className="relative animate-premium">
+                        <input 
+                          type="text"
+                          value={customerName}
+                          onChange={e => setCustomerName(e.target.value)}
+                          placeholder="Nome do Novo Cliente (Opcional)"
+                          className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-6 py-5 pl-14 text-slate-900 dark:text-slate-100 font-bold focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:outline-none"
+                        />
+                        <Plus className="absolute left-6 top-1/2 -translate-y-1/2 text-blue-500" size={20} />
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                          <span className="text-[8px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-md uppercase">Auto-Cadastro</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

@@ -59,7 +59,7 @@ const LoginPin: React.FC<LoginPinProps> = ({ onSuccess }) => {
           </div>
         </div>
         <div className="text-center">
-          <h1 className="text-4xl font-black text-white tracking-tighter">CrystalOne</h1>
+          <h1 className="text-4xl font-black text-white tracking-tighter">Água Cristalina</h1>
           <div className="flex items-center justify-center gap-2 mt-2">
             <Lock size={14} className="text-blue-400" />
             <span className="text-[10px] text-blue-400 font-bold uppercase tracking-[0.4em] opacity-60">Acesso Restrito</span>

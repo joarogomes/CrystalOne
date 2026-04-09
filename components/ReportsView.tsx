@@ -128,7 +128,7 @@ const getLocalDateString = (date: Date = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
-const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddTDS, onAddMaintenance, storeName = "CrystalOne", accessLevel = 'full', initialTab }) => {
+const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddTDS, onAddMaintenance, storeName = "Água Cristalina", accessLevel = 'full', initialTab }) => {
   const [activeTab, setActiveTab] = useState<ReportTab>(() => {
     if (initialTab) return initialTab;
     if (accessLevel === 'operational') return 'quality';
@@ -348,7 +348,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddTDS, onA
       
       const summaryData = [
         ["Faturamento (Vendas)", `${totalSales.toLocaleString()} Kz`],
-        ["Depósitos de Clientes", `${totalDeposits.toLocaleString()} Kz`],
+        ["Vendas Adiantadas (Depósitos)", `${totalDeposits.toLocaleString()} Kz`],
         ["Custos Totais (Saídas + Investimentos)", `${totalOut.toLocaleString()} Kz`],
         ["Saldo Líquido (Caixa)", `${(cashSales + totalDeposits - totalOut).toLocaleString()} Kz`]
       ];
@@ -418,7 +418,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddTDS, onA
         styles: { font: 'helvetica', fontSize: 9 }
       });
 
-      doc.save(`Relatorio_CrystalOne_${new Date().toISOString().split('T')[0]}.pdf`);
+      doc.save(`Relatorio_AguaCristalina_${new Date().toISOString().split('T')[0]}.pdf`);
     } catch (error) {
       console.error("Erro ao gerar PDF:", error);
     } finally {
@@ -464,7 +464,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddTDS, onA
     const message = `*${storeName} - ${title}*%0A%0A` +
       `💰 *Financeiro:*%0A` +
       `• Vendas: ${totalSales.toLocaleString()} Kz%0A` +
-      `• Depósitos: ${totalDeposits.toLocaleString()} Kz%0A` +
+      `• Vendas Adiantadas: ${totalDeposits.toLocaleString()} Kz%0A` +
       `• Despesas: ${totalExpenses.toLocaleString()} Kz%0A` +
       `• Investimentos: ${totalInvestments.toLocaleString()} Kz%0A` +
       `• *Saldo Líquido (Caixa): ${balance.toLocaleString()} Kz*%0A%0A` +
@@ -474,7 +474,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddTDS, onA
       `📊 *Resumo Operacional:*%0A` +
       `• Total de Transações: ${filteredTransactions.length}%0A` +
       `• Vendas Realizadas: ${sales.length}%0A%0A` +
-      `_Gerado via CrystalOne Cloud_`;
+      `_Gerado via Água Cristalina Cloud_`;
 
     window.open(`https://wa.me/244939667223?text=${message}`, '_blank');
   };
@@ -581,7 +581,7 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddTDS, onA
                     <span className="text-3xl md:text-5xl font-black tracking-tight">{totalSales.toLocaleString()} Kz</span>
                   </div>
                   <div className="flex flex-col gap-1 md:gap-3 border-t md:border-t-0 md:border-l border-white/10 pt-6 md:pt-0 md:pl-12 text-center md:text-left">
-                    <span className="text-[10px] font-black text-emerald-400 dark:text-emerald-300 uppercase tracking-[0.4em]">Depósitos</span>
+                    <span className="text-[10px] font-black text-emerald-400 dark:text-emerald-300 uppercase tracking-[0.4em]">Vendas Adiantadas</span>
                     <span className="text-2xl md:text-3xl font-black tracking-tight">{totalDeposits.toLocaleString()} Kz</span>
                   </div>
                   <div className="flex flex-col gap-1 md:gap-3 border-t md:border-t-0 md:border-l border-white/10 pt-6 md:pt-0 md:pl-12 text-center md:text-left">

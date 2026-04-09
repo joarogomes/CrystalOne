@@ -78,7 +78,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onSuccess }) => {
             </div>
           </div>
           <div className="text-center">
-            <h1 className="text-4xl font-black text-white tracking-tighter">CrystalOne</h1>
+            <h1 className="text-4xl font-black text-white tracking-tighter">Água Cristalina</h1>
             <p className="text-[10px] text-blue-400 font-bold uppercase tracking-[0.4em] mt-1 opacity-60">
               {isSignUp ? 'Registro de Unidade' : 'Business Ecosystem'}
             </p>

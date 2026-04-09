@@ -1,4 +1,4 @@
-const CACHE_NAME = 'crystalone-v2';
+const CACHE_NAME = 'aguacristalina-v2';
 const ASSETS = [
   '/',
   '/index.html',

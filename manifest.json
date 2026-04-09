@@ -1,6 +1,6 @@
 {
-  "name": "CrystalOne - Gestão de Purificadora",
-  "short_name": "CrystalOne",
+  "name": "Água Cristalina - Gestão de Purificadora",
+  "short_name": "Água Cristalina",
   "description": "Gestão estratégica para purificadoras de água",
   "start_url": "/",
   "display": "standalone",
@@ -8,12 +8,12 @@
   "theme_color": "#2563eb",
   "icons": [
     {
-      "src": "https://picsum.photos/seed/crystalone/192/192",
+      "src": "https://picsum.photos/seed/aguacristalina/192/192",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "https://picsum.photos/seed/crystalone/512/512",
+      "src": "https://picsum.photos/seed/aguacristalina/512/512",
       "sizes": "512x512",
       "type": "image/png"
     }

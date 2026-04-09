@@ -34,7 +34,7 @@ const getContextPrompt = (state: BusinessState) => {
   const topCategory = Object.entries(salesByCategory).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
 
   return `
-    Você é o consultor estratégico da "CrystalOne", uma loja de água purificada em Luanda, Angola.
+    Você é o consultor estratégico da "Água Cristalina", uma loja de água purificada em Luanda, Angola.
     DADOS FINANCEIROS ATUAIS (Kz):
     - Faturamento: ${salesTotal.toLocaleString()} Kz
     - Despesas Operacionais: ${expensesTotal.toLocaleString()} Kz
@@ -62,7 +62,7 @@ export const getDailyMarketingTip = async (state: BusinessState): Promise<string
 
   const ai = new GoogleGenAI({ apiKey });
   const context = getContextPrompt(state);
-  const prompt = `Com base nos dados da CrystalOne fornecidos, crie uma ÚNICA dica de marketing diária curta (máximo 280 caracteres). A dica deve ser extremamente prática, criativa e focada em resultados imediatos (WhatsApp, combos ou fidelização). Use um tom motivador.`;
+  const prompt = `Com base nos dados da Água Cristalina fornecidos, crie uma ÚNICA dica de marketing diária curta (máximo 280 caracteres). A dica deve ser extremamente prática, criativa e focada em resultados imediatos (WhatsApp, combos ou fidelização). Use um tom motivador.`;
 
   const maxRetries = 3;
   let delay = 1000;

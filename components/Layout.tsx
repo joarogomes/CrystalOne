@@ -53,7 +53,7 @@ const Layout: React.FC<LayoutProps> = ({
   const filteredNavItems = useMemo(() => {
     if (accessLevel === 'full') return NAV_ITEMS;
     // For operational access, only show Dashboard, Sales, Inventory and Quality
-    return NAV_ITEMS.filter(item => ['dashboard', 'sales', 'inventory', 'quality'].includes(item.id));
+    return NAV_ITEMS.filter(item => ['dashboard', 'sales', 'inventory', 'quality', 'customers'].includes(item.id));
   }, [accessLevel]);
 
   useEffect(() => {

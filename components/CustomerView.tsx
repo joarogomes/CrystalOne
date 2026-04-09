@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Customer, Transaction, AccessLevel } from '../types';
-import { User, Phone, Wallet, Plus, Search, ChevronRight, History, TrendingUp, ArrowUpRight, ArrowDownRight, UserPlus, Droplets } from 'lucide-react';
+import { User, Phone, Wallet, Plus, Search, ChevronRight, History, TrendingUp, ArrowUpRight, ArrowDownRight, UserPlus, Droplets, PanelLeftClose, PanelLeftOpen, Edit3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { supabase } from '../services/supabase';
 import { InventoryItem, PaymentMethod } from '../types';
@@ -15,6 +15,7 @@ interface CustomerViewProps {
   onRefresh: () => void;
   onAddTransaction: (t: Omit<Transaction, 'id' | 'created_at'>) => Promise<void>;
   onAddCustomer: (c: Omit<Customer, 'id' | 'created_at' | 'store_id'>) => Promise<any>;
+  onUpdateCustomer: (id: string, updates: Partial<Customer>) => Promise<any>;
   onUpdateInventory: (id: string, delta: number, paymentMethod?: PaymentMethod, customerId?: string) => Promise<void>;
 }
 
@@ -27,19 +28,23 @@ const CustomerView: React.FC<CustomerViewProps> = ({
   onRefresh,
   onAddTransaction,
   onAddCustomer,
+  onUpdateCustomer,
   onUpdateInventory
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   
   const [newCustomer, setNewCustomer] = useState({ name: '', phone: '' });
+  const [editCustomer, setEditCustomer] = useState({ name: '', phone: '' });
   const [depositAmount, setDepositAmount] = useState('');
   const [withdrawQty, setWithdrawQty] = useState('1');
   const [selectedWithdrawProductId, setSelectedWithdrawProductId] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isListCollapsed, setIsListCollapsed] = useState(false);
 
   const filteredCustomers = useMemo(() => {
     return customers.filter(c => 
@@ -80,6 +85,37 @@ const CustomerView: React.FC<CustomerViewProps> = ({
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleEditCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCustomer || !editCustomer.name) return;
+
+    setIsSubmitting(true);
+    try {
+      const updated = await onUpdateCustomer(selectedCustomer.id, {
+        name: editCustomer.name,
+        phone: editCustomer.phone
+      });
+      
+      if (updated) {
+        setSelectedCustomer(updated);
+      }
+      setShowEditModal(false);
+    } catch (err) {
+      console.error('Erro ao editar cliente:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const openEditModal = () => {
+    if (!selectedCustomer) return;
+    setEditCustomer({
+      name: selectedCustomer.name,
+      phone: selectedCustomer.phone
+    });
+    setShowEditModal(true);
   };
 
   const handleWithdraw = async (e: React.FormEvent) => {
@@ -156,9 +192,18 @@ const CustomerView: React.FC<CustomerViewProps> = ({
   return (
     <div className="space-y-8 animate-premium">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-        <div>
-          <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">Gestão de Clientes</h2>
-          <p className="text-slate-500 dark:text-slate-400 font-medium mt-1">Controle de compras e saldos antecipados</p>
+        <div className="flex items-center gap-4">
+          <div>
+            <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">Gestão de Clientes</h2>
+            <p className="text-slate-500 dark:text-slate-400 font-medium mt-1">Controle de compras e saldos antecipados</p>
+          </div>
+          <button 
+            onClick={() => setIsListCollapsed(!isListCollapsed)}
+            className="p-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl text-slate-400 hover:text-blue-600 transition-all shadow-sm active:scale-95"
+            title={isListCollapsed ? "Expandir Lista" : "Comprimir Lista"}
+          >
+            {isListCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
+          </button>
         </div>
         <button 
           onClick={() => setShowAddModal(true)}
@@ -169,76 +214,86 @@ const CustomerView: React.FC<CustomerViewProps> = ({
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Lista de Clientes */}
-        <div className="lg:col-span-5 space-y-6">
-          <div className="relative group">
-            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" size={20} />
-            <input 
-              type="text" 
-              placeholder="Pesquisar por nome ou telefone..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-14 pr-6 py-5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl text-sm font-bold focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all shadow-sm"
-            />
-          </div>
+        <AnimatePresence>
+          {!isListCollapsed && (
+            <motion.div 
+              initial={{ opacity: 0, width: 0, x: -20 }}
+              animate={{ opacity: 1, width: 'auto', x: 0 }}
+              exit={{ opacity: 0, width: 0, x: -20 }}
+              transition={{ duration: 0.4, ease: "circOut" }}
+              className="lg:col-span-5 space-y-6 overflow-hidden"
+            >
+              <div className="relative group">
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" size={20} />
+                <input 
+                  type="text" 
+                  placeholder="Pesquisar por nome ou telefone..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-14 pr-6 py-5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl text-sm font-bold focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all shadow-sm"
+                />
+              </div>
 
-          <div className="space-y-4 max-h-[600px] overflow-y-auto no-scrollbar pr-2">
-            {filteredCustomers.map(customer => (
-              <motion.div
-                key={customer.id}
-                layoutId={customer.id}
-                onClick={() => setSelectedCustomer(customer)}
-                className={`p-6 rounded-[32px] border transition-all cursor-pointer group ${
-                  selectedCustomer?.id === customer.id 
-                    ? 'bg-blue-600 border-blue-600 text-white shadow-xl shadow-blue-200 dark:shadow-blue-900/20' 
-                    : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900/30 hover:shadow-lg'
-                }`}
-              >
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors ${
-                      selectedCustomer?.id === customer.id ? 'bg-white/20' : 'bg-slate-50 dark:bg-slate-800'
-                    }`}>
-                      <User size={24} className={selectedCustomer?.id === customer.id ? 'text-white' : 'text-blue-600'} />
-                    </div>
-                    <div>
-                      <h4 className="font-black tracking-tight">{customer.name}</h4>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Phone size={12} className={selectedCustomer?.id === customer.id ? 'text-white/60' : 'text-slate-400'} />
-                        <span className={`text-[10px] font-bold uppercase tracking-widest ${
-                          selectedCustomer?.id === customer.id ? 'text-white/60' : 'text-slate-500'
+              <div className="space-y-4 max-h-[600px] overflow-y-auto no-scrollbar pr-2">
+                {filteredCustomers.map(customer => (
+                  <motion.div
+                    key={customer.id}
+                    layoutId={customer.id}
+                    onClick={() => setSelectedCustomer(customer)}
+                    className={`p-6 rounded-[32px] border transition-all cursor-pointer group ${
+                      selectedCustomer?.id === customer.id 
+                        ? 'bg-blue-600 border-blue-600 text-white shadow-xl shadow-blue-200 dark:shadow-blue-900/20' 
+                        : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:border-blue-200 dark:hover:border-blue-900/30 hover:shadow-lg'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors ${
+                          selectedCustomer?.id === customer.id ? 'bg-white/20' : 'bg-slate-50 dark:bg-slate-800'
                         }`}>
-                          {customer.phone || 'Sem telefone'}
-                        </span>
+                          <User size={24} className={selectedCustomer?.id === customer.id ? 'text-white' : 'text-blue-600'} />
+                        </div>
+                        <div>
+                          <h4 className="font-black tracking-tight">{customer.name}</h4>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Phone size={12} className={selectedCustomer?.id === customer.id ? 'text-white/60' : 'text-slate-400'} />
+                            <span className={`text-[10px] font-bold uppercase tracking-widest ${
+                              selectedCustomer?.id === customer.id ? 'text-white/60' : 'text-slate-500'
+                            }`}>
+                              {customer.phone || 'Sem telefone'}
+                            </span>
+                          </div>
+                        </div>
                       </div>
+                        <div className="text-right">
+                          <span className={`text-[10px] font-black uppercase tracking-widest block mb-1 ${
+                            selectedCustomer?.id === customer.id ? 'text-white/60' : 'text-slate-400'
+                          }`}>Saldo</span>
+                          <div className="flex flex-col items-end">
+                            <span className="text-lg font-black tracking-tight">
+                              {customer.balance.toLocaleString()} Kz
+                            </span>
+                            {customer.balance < 1000 && (
+                              <span className={`text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded-md mt-1 ${
+                                selectedCustomer?.id === customer.id ? 'bg-white/20 text-white' : 'bg-red-50 text-red-600 dark:bg-red-900/20'
+                              }`}>
+                                Saldo Baixo
+                              </span>
+                            )}
+                          </div>
+                        </div>
                     </div>
-                  </div>
-                    <div className="text-right">
-                      <span className={`text-[10px] font-black uppercase tracking-widest block mb-1 ${
-                        selectedCustomer?.id === customer.id ? 'text-white/60' : 'text-slate-400'
-                      }`}>Saldo</span>
-                      <div className="flex flex-col items-end">
-                        <span className="text-lg font-black tracking-tight">
-                          {customer.balance.toLocaleString()} Kz
-                        </span>
-                        {customer.balance < 1000 && (
-                          <span className={`text-[8px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded-md mt-1 ${
-                            selectedCustomer?.id === customer.id ? 'bg-white/20 text-white' : 'bg-red-50 text-red-600 dark:bg-red-900/20'
-                          }`}>
-                            Saldo Baixo
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Detalhes do Cliente */}
-        <div className="lg:col-span-7">
+        <div className={`${isListCollapsed ? 'lg:col-span-12' : 'lg:col-span-7'} transition-all duration-500 ease-in-out`}>
           <AnimatePresence mode="wait">
             {selectedCustomer ? (
               <motion.div
@@ -270,9 +325,16 @@ const CustomerView: React.FC<CustomerViewProps> = ({
                           </div>
                         </div>
                       </div>
-                      <div className="flex gap-3">
-                        <button 
-                          onClick={() => setShowWithdrawModal(true)}
+                        <div className="flex gap-3">
+                          <button 
+                            onClick={openEditModal}
+                            className="p-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-2xl hover:text-blue-600 transition-all active:scale-95"
+                            title="Editar Informações"
+                          >
+                            <Edit3 size={20} />
+                          </button>
+                          <button 
+                            onClick={() => setShowWithdrawModal(true)}
                           className="flex items-center gap-3 px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black shadow-xl shadow-blue-200 dark:shadow-blue-900/20 transition-all active:scale-95"
                         >
                           <Droplets size={20} />
@@ -425,6 +487,66 @@ const CustomerView: React.FC<CustomerViewProps> = ({
                     className="flex-1 px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black shadow-xl shadow-blue-200 dark:shadow-blue-900/20 transition-all active:scale-95 disabled:opacity-50"
                   >
                     {isSubmitting ? 'Salvando...' : 'Cadastrar'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Modal Editar Cliente */}
+      {showEditModal && selectedCustomer && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            onClick={() => setShowEditModal(false)}
+          />
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-[40px] shadow-2xl overflow-hidden"
+          >
+            <div className="p-10">
+              <h3 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white mb-8">Editar Informações do Cliente</h3>
+              <form onSubmit={handleEditCustomer} className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome Completo</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={editCustomer.name}
+                    onChange={(e) => setEditCustomer({...editCustomer, name: e.target.value})}
+                    placeholder="Ex: João Silva"
+                    className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl text-sm font-bold focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Número de Telefone</label>
+                  <input 
+                    type="tel" 
+                    value={editCustomer.phone}
+                    onChange={(e) => setEditCustomer({...editCustomer, phone: e.target.value})}
+                    placeholder="Ex: 923 000 000"
+                    className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl text-sm font-bold focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                  />
+                </div>
+                <div className="flex gap-4 pt-4">
+                  <button 
+                    type="button"
+                    onClick={() => setShowEditModal(false)}
+                    className="flex-1 px-8 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-2xl font-black transition-all active:scale-95"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="flex-1 px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-black shadow-xl shadow-blue-200 dark:shadow-blue-900/20 transition-all active:scale-95 disabled:opacity-50"
+                  >
+                    {isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
                   </button>
                 </div>
               </form>

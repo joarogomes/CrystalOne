@@ -164,7 +164,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     loadData();
-    const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
     console.log("Status da IA:", apiKey ? "Configurada" : "Não configurada");
   }, [loadData]);
 
@@ -267,9 +267,29 @@ const App: React.FC = () => {
   const handleAddTransaction = async (newT: Omit<Transaction, 'id' | 'created_at' | 'store_id'> & { created_at?: string }) => {
     console.log("Iniciando handleAddTransaction com:", newT);
     try {
+      // Auto-create customer if name provided but no ID
+      let finalCustomerId = newT.customer_id;
+      if (newT.type === 'sale' && !finalCustomerId && newT.customer_name) {
+        const existingCustomer = customers.find(c => c.name.toLowerCase() === newT.customer_name?.toLowerCase());
+        if (existingCustomer) {
+          finalCustomerId = existingCustomer.id;
+        } else {
+          try {
+            const createdCustomer = await handleAddCustomer({
+              name: newT.customer_name,
+              phone: '',
+              balance: 0
+            });
+            finalCustomerId = createdCustomer.id;
+          } catch (err) {
+            console.error("Erro ao criar cliente automático:", err);
+          }
+        }
+      }
+
       // Se for pagamento via saldo do cliente, verificar e descontar
-      if (newT.payment_method === 'Saldo Cliente' && newT.customer_id) {
-        const customer = customers.find(c => c.id === newT.customer_id);
+      if (newT.payment_method === 'Saldo Cliente' && finalCustomerId) {
+        const customer = customers.find(c => c.id === finalCustomerId);
         if (!customer) throw new Error('Cliente não encontrado.');
 
         const newBalance = customer.balance - newT.amount;
@@ -277,7 +297,7 @@ const App: React.FC = () => {
         const { error: balanceError } = await supabase
           .from('customers')
           .update({ balance: newBalance })
-          .eq('id', newT.customer_id);
+          .eq('id', finalCustomerId);
 
         if (balanceError) throw balanceError;
         
@@ -300,7 +320,7 @@ const App: React.FC = () => {
         }
       }
 
-      const payload = { ...newT, store_id: activeStoreId };
+      const payload = { ...newT, customer_id: finalCustomerId, store_id: activeStoreId };
       console.log("Enviando payload para Supabase:", payload);
       const { data, error } = await supabase
         .from('transactions')
@@ -569,6 +589,45 @@ const App: React.FC = () => {
     }
   };
 
+  const handleUpdateCustomer = async (id: string, updates: Partial<Customer>) => {
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setCustomers(prev => prev.map(c => c.id === id ? data : c));
+        setToast({
+          id: crypto.randomUUID(),
+          store_id: activeStoreId || '',
+          title: 'Cliente Atualizado',
+          message: `Dados de ${data.name} atualizados com sucesso.`,
+          type: 'info',
+          read: false,
+          created_at: new Date().toISOString()
+        });
+      }
+      return data;
+    } catch (err: any) {
+      console.error("Erro ao atualizar cliente:", err);
+      setToast({
+        id: crypto.randomUUID(),
+        store_id: activeStoreId || '',
+        title: 'Erro de Atualização',
+        message: `Falha ao atualizar cliente: ${err.message || 'Erro de rede'}`,
+        type: 'danger',
+        read: false,
+        created_at: new Date().toISOString()
+      });
+      throw err;
+    }
+  };
+
   const handleAddInventoryItem = async (newItem: Omit<InventoryItem, 'id' | 'store_id' | 'created_at'>) => {
     try {
       const { data, error } = await supabase
@@ -739,6 +798,7 @@ const App: React.FC = () => {
             onRefresh={loadData}
             onAddTransaction={handleAddTransaction}
             onAddCustomer={handleAddCustomer}
+            onUpdateCustomer={handleUpdateCustomer}
             onUpdateInventory={handleUpdateInventory}
           />
         )}

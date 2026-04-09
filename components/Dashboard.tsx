@@ -84,7 +84,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, onAddPH, onAd
   const [showTDSModal, setShowTDSModal] = useState(false);
   const [phValue, setPhValue] = useState('');
   const [tdsValue, setTdsValue] = useState('');
-  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
 
   const todayStr = getLocalDateString();
   const todayTransactions = state.transactions.filter(t => getLocalDateString(new Date(t.created_at)) === todayStr);

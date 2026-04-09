@@ -54,7 +54,7 @@ const getContextPrompt = (state: BusinessState) => {
 };
 
 export const getDailyMarketingTip = async (state: BusinessState): Promise<string> => {
-  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     console.warn("GEMINI_API_KEY não configurada. Usando dica padrão.");
     return "Crie um combo especial: na compra de 5 galões, a entrega é grátis hoje!";
@@ -70,7 +70,7 @@ export const getDailyMarketingTip = async (state: BusinessState): Promise<string
   for (let i = 0; i < maxRetries; i++) {
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-flash-latest',
         contents: context + "\n\n" + prompt,
         config: { temperature: 0.9 }
       });
@@ -87,7 +87,7 @@ export const getDailyMarketingTip = async (state: BusinessState): Promise<string
 };
 
 export const getBusinessInsights = async (state: BusinessState, type: 'daily' | 'monthly' = 'daily'): Promise<string> => {
-  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return "A chave da IA não está configurada. Por favor, adicione a GEMINI_API_KEY nas configurações.";
   }
@@ -109,7 +109,7 @@ export const getBusinessInsights = async (state: BusinessState, type: 'daily' | 
   for (let i = 0; i < maxRetries; i++) {
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-flash-latest',
         contents: context + "\n\n" + requestPrompt,
         config: { temperature: 0.7 }
       });
@@ -126,7 +126,7 @@ export const getBusinessInsights = async (state: BusinessState, type: 'daily' | 
 };
 
 export const getStockPredictions = async (state: BusinessState): Promise<string> => {
-  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return "A chave da IA não está configurada para previsões de estoque.";
   }
@@ -157,7 +157,7 @@ export const getStockPredictions = async (state: BusinessState): Promise<string>
   for (let i = 0; i < maxRetries; i++) {
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-flash-latest',
         contents: context + "\n\n" + prompt,
         config: { temperature: 0.7 }
       });
@@ -174,7 +174,7 @@ export const getStockPredictions = async (state: BusinessState): Promise<string>
 };
 
 export const sendChatMessage = async (state: BusinessState, history: ChatMessage[], newMessage: string): Promise<string> => {
-  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return "Chat desativado: GEMINI_API_KEY ausente.";
   }
@@ -188,7 +188,7 @@ export const sendChatMessage = async (state: BusinessState, history: ChatMessage
   for (let i = 0; i < maxRetries; i++) {
     try {
       const chat = ai.chats.create({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-flash-latest',
         config: { 
           systemInstruction,
           temperature: 0.8

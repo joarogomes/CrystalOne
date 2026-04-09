@@ -12,7 +12,7 @@ const AIAdvisor: React.FC<AIAdvisorProps> = ({ state }) => {
   const [insight, setInsight] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [analysisType, setAnalysisType] = useState<'daily' | 'monthly' | 'stock'>('daily');
-  const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   
   // Chat States
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);

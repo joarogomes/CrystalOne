@@ -19,6 +19,8 @@ interface LayoutProps {
   dbStatus?: 'connected' | 'error' | 'checking';
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
+  notifications?: AppNotification[];
+  onMarkNotificationRead?: (id: string) => void;
 }
 
 const Layout: React.FC<LayoutProps> = ({ 
@@ -35,9 +37,12 @@ const Layout: React.FC<LayoutProps> = ({
   isTestingDb = false,
   dbStatus = 'checking',
   isDarkMode,
-  onToggleDarkMode
+  onToggleDarkMode,
+  notifications = [],
+  onMarkNotificationRead
 }) => {
   const [showStoreSwitcher, setShowStoreSwitcher] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [viewTransition, setViewTransition] = useState(false);
   const [isDesktopMode, setIsDesktopMode] = useState(() => {
     return localStorage.getItem('crystalone_view_mode') === 'desktop';
@@ -106,6 +111,60 @@ const Layout: React.FC<LayoutProps> = ({
           >
             {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
           </button>
+
+          <div className="relative">
+            <button 
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-700 active:scale-90 transition-all relative"
+            >
+              <Bell size={20} />
+              {notifications.some(n => !n.read) && (
+                <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 border-2 border-white dark:border-slate-900 rounded-full" />
+              )}
+            </button>
+
+            {showNotifications && (
+              <div className="absolute right-0 mt-3 w-80 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-800 z-[60] overflow-hidden animate-premium">
+                <div className="p-5 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-white">Notificações</h4>
+                  <span className="text-[10px] font-black text-blue-600 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-full">
+                    {notifications.filter(n => !n.read).length} Novas
+                  </span>
+                </div>
+                <div className="max-h-96 overflow-y-auto no-scrollbar">
+                  {notifications.length > 0 ? (
+                    notifications.map(n => (
+                      <div 
+                        key={n.id} 
+                        onClick={() => onMarkNotificationRead?.(n.id)}
+                        className={`p-5 border-b border-slate-50 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer relative ${!n.read ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''}`}
+                      >
+                        {!n.read && <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-600" />}
+                        <div className="flex flex-col gap-1">
+                          <span className={`text-[11px] font-black ${n.type === 'danger' ? 'text-red-600' : n.type === 'warning' ? 'text-amber-600' : 'text-blue-600'}`}>
+                            {n.title}
+                          </span>
+                          <p className="text-[10px] text-slate-600 dark:text-slate-400 font-medium leading-relaxed">
+                            {n.message}
+                          </p>
+                          <span className="text-[8px] text-slate-400 mt-1 font-bold uppercase tracking-widest">
+                            {new Date(n.created_at).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-10 text-center flex flex-col items-center gap-3">
+                      <div className="w-12 h-12 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-slate-300 dark:text-slate-600">
+                        <Bell size={24} />
+                      </div>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sem notificações</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           <button 
             onClick={toggleViewMode}

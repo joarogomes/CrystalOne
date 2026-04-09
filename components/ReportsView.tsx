@@ -273,6 +273,9 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddTDS, onA
           groups[dateKey].sales += t.amount;
           groups[dateKey].quantity += (t.quantity || 1);
         }
+        else if (t.type === 'prepayment') {
+          groups[dateKey].sales += t.amount; // Still count as inflow for the group summary
+        }
         else if (t.type === 'expense') groups[dateKey].expenses += t.amount;
         else if (t.type === 'investment') groups[dateKey].investments += t.amount;
         groups[dateKey].count += 1;
@@ -283,7 +286,9 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddTDS, onA
   }, [filteredTransactionsList]);
 
   const totalSales = useMemo(() => filteredTransactionsList.filter(t => t.type === 'sale').reduce((s,t) => s+t.amount, 0), [filteredTransactionsList]);
-  const totalOut = useMemo(() => filteredTransactionsList.filter(t => t.type !== 'sale').reduce((s,t) => s+t.amount, 0), [filteredTransactionsList]);
+  const totalDeposits = useMemo(() => filteredTransactionsList.filter(t => t.type === 'prepayment').reduce((s,t) => s+t.amount, 0), [filteredTransactionsList]);
+  const cashSales = useMemo(() => filteredTransactionsList.filter(t => t.type === 'sale' && t.payment_method !== 'Saldo Cliente').reduce((s,t) => s+t.amount, 0), [filteredTransactionsList]);
+  const totalOut = useMemo(() => filteredTransactionsList.filter(t => t.type === 'expense' || t.type === 'investment').reduce((s,t) => s+t.amount, 0), [filteredTransactionsList]);
 
   const handlePHSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -342,9 +347,10 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddTDS, onA
       doc.text("1. RESUMO FINANCEIRO", 14, 45);
       
       const summaryData = [
-        ["Faturamento Total", `${totalSales.toLocaleString()} Kz`],
+        ["Faturamento (Vendas)", `${totalSales.toLocaleString()} Kz`],
+        ["Depósitos de Clientes", `${totalDeposits.toLocaleString()} Kz`],
         ["Custos Totais (Saídas + Investimentos)", `${totalOut.toLocaleString()} Kz`],
-        ["Saldo Líquido", `${(totalSales - totalOut).toLocaleString()} Kz`]
+        ["Saldo Líquido (Caixa)", `${(cashSales + totalDeposits - totalOut).toLocaleString()} Kz`]
       ];
 
       autoTable(doc, {
@@ -447,18 +453,21 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddTDS, onA
     const investments = filteredTransactions.filter(t => t.type === 'investment');
 
     const totalSales = sales.reduce((sum, t) => sum + t.amount, 0);
+    const totalDeposits = filteredTransactions.filter(t => t.type === 'prepayment').reduce((sum, t) => sum + t.amount, 0);
+    const cashSales = sales.filter(t => t.payment_method !== 'Saldo Cliente').reduce((sum, t) => sum + t.amount, 0);
     const totalExpenses = expenses.reduce((sum, t) => sum + t.amount, 0);
     const totalInvestments = investments.reduce((sum, t) => sum + t.amount, 0);
-    const balance = totalSales - totalExpenses - totalInvestments;
+    const balance = cashSales + totalDeposits - totalExpenses - totalInvestments;
 
     const lastPH = state.phRecords.length > 0 ? state.phRecords[state.phRecords.length - 1] : null;
 
     const message = `*${storeName} - ${title}*%0A%0A` +
       `💰 *Financeiro:*%0A` +
       `• Vendas: ${totalSales.toLocaleString()} Kz%0A` +
+      `• Depósitos: ${totalDeposits.toLocaleString()} Kz%0A` +
       `• Despesas: ${totalExpenses.toLocaleString()} Kz%0A` +
       `• Investimentos: ${totalInvestments.toLocaleString()} Kz%0A` +
-      `• *Saldo Líquido: ${balance.toLocaleString()} Kz*%0A%0A` +
+      `• *Saldo Líquido (Caixa): ${balance.toLocaleString()} Kz*%0A%0A` +
       `💧 *Qualidade (Último pH):*%0A` +
       (lastPH ? `• Valor: ${lastPH.value.toFixed(2)} (${lastPH.status})%0A` : `• Sem registros recentes%0A`) +
       `• Data: ${lastPH ? new Date(lastPH.created_at).toLocaleString() : 'N/A'}%0A%0A` +
@@ -568,16 +577,20 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddTDS, onA
             <div className="bg-slate-900 dark:bg-slate-950 p-6 md:p-12 rounded-[32px] md:rounded-[56px] text-white shadow-2xl relative overflow-hidden border border-white/5 dark:border-slate-800/50">
                <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-12">
                   <div className="flex flex-col gap-1 md:gap-3 text-center md:text-left">
-                    <span className="text-[10px] font-black text-blue-400 dark:text-blue-300 uppercase tracking-[0.4em]">Faturamento Total</span>
+                    <span className="text-[10px] font-black text-blue-400 dark:text-blue-300 uppercase tracking-[0.4em]">Faturamento (Vendas)</span>
                     <span className="text-3xl md:text-5xl font-black tracking-tight">{totalSales.toLocaleString()} Kz</span>
+                  </div>
+                  <div className="flex flex-col gap-1 md:gap-3 border-t md:border-t-0 md:border-l border-white/10 pt-6 md:pt-0 md:pl-12 text-center md:text-left">
+                    <span className="text-[10px] font-black text-emerald-400 dark:text-emerald-300 uppercase tracking-[0.4em]">Depósitos</span>
+                    <span className="text-2xl md:text-3xl font-black tracking-tight">{totalDeposits.toLocaleString()} Kz</span>
                   </div>
                   <div className="flex flex-col gap-1 md:gap-3 border-t md:border-t-0 md:border-l border-white/10 pt-6 md:pt-0 md:pl-12 text-center md:text-left">
                     <span className="text-[10px] font-black text-rose-400 dark:text-rose-300 uppercase tracking-[0.4em]">Custos Totais</span>
                     <span className="text-2xl md:text-3xl font-black tracking-tight">{totalOut.toLocaleString()} Kz</span>
                   </div>
-                  <div className="flex flex-col gap-1 md:gap-3 border-t md:border-t-0 md:border-l border-white/10 pt-6 md:pt-0 md:pl-12 text-center md:text-left">
-                    <span className="text-[10px] font-black text-emerald-400 dark:text-emerald-300 uppercase tracking-[0.4em]">Saldo Líquido</span>
-                    <span className="text-2xl md:text-3xl font-black tracking-tight">{(totalSales - totalOut).toLocaleString()} Kz</span>
+                  <div className="flex flex-col gap-1 md:gap-3 border-t md:border-t-0 md:border-l border-white/10 pt-6 md:pt-0 md:pl-12 text-center md:text-left lg:col-span-3 lg:border-l-0 lg:border-t lg:pt-6">
+                    <span className="text-[10px] font-black text-white uppercase tracking-[0.4em]">Saldo Líquido (Caixa)</span>
+                    <span className="text-3xl md:text-4xl font-black tracking-tight">{(cashSales + totalDeposits - totalOut).toLocaleString()} Kz</span>
                   </div>
                </div>
                <Sparkles size={300} className="absolute -right-32 -bottom-32 text-white/5 opacity-40 rotate-12" />

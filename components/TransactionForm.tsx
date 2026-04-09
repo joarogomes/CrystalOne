@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Transaction, TransactionType, AccessLevel, PaymentMethod } from '../types';
-import { Plus, X, Calendar, TrendingDown, Landmark, Info, ChevronLeft, ChevronRight, Edit3, List, ShoppingCart, PieChart as PieIcon, TrendingUp } from 'lucide-react';
+import { Transaction, TransactionType, AccessLevel, PaymentMethod, Customer } from '../types';
+import { Plus, X, Calendar, TrendingDown, Landmark, Info, ChevronLeft, ChevronRight, Edit3, List, ShoppingCart, PieChart as PieIcon, TrendingUp, User, Wallet } from 'lucide-react';
 import { SALE_CATEGORIES, EXPENSE_CATEGORIES, INVESTMENT_CATEGORIES, QUICK_SALE_ITEMS } from '../constants';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, AreaChart, Area, XAxis, YAxis, CartesianGrid, BarChart, Bar, ComposedChart, Line } from 'recharts';
 import { Zap } from 'lucide-react';
@@ -12,6 +12,9 @@ interface TransactionFormProps {
   onAdd: (transaction: Omit<Transaction, 'id' | 'created_at' | 'store_id'> & { created_at?: string }) => void;
   transactions: Transaction[];
   accessLevel?: AccessLevel;
+  customers?: Customer[];
+  phRecords?: any[];
+  storeName?: string;
 }
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
@@ -23,7 +26,7 @@ const getLocalDateString = (date: Date = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
-const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transactions, accessLevel = 'operational' }) => {
+const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transactions, accessLevel = 'operational', customers = [] }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [amount, setAmount] = useState('');
   const [unitPrice, setUnitPrice] = useState('');
@@ -34,6 +37,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
   const [customCategory, setCustomCategory] = useState('');
   const [isCustomCategory, setIsCustomCategory] = useState(false);
   const [description, setDescription] = useState('');
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [customerName, setCustomerName] = useState('');
   const [selectedDate, setSelectedDate] = useState(getLocalDateString());
   const [salesTimeFilter, setSalesTimeFilter] = useState<'day' | 'week' | 'month'>('day');
@@ -111,6 +115,9 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
       ? new Date().toISOString() 
       : new Date(selectedDate + 'T12:00:00').toISOString();
 
+    const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
+    const finalCustomerName = selectedCustomer ? selectedCustomer.name : customerName;
+
     onAdd({
       type: activeType as TransactionType,
       category: finalCategory,
@@ -118,7 +125,8 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
       description: activeType === 'sale' ? (description || `Venda ${paymentMethod}`) : description,
       quantity: parseInt(quantity) || 1,
       payment_method: activeType === 'sale' ? paymentMethod : undefined,
-      customer_name: activeType === 'sale' ? customerName : undefined,
+      customer_id: selectedCustomerId || undefined,
+      customer_name: activeType === 'sale' ? finalCustomerName : undefined,
       created_at: createdAt
     });
 
@@ -129,6 +137,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
     setCustomCategory('');
     setIsCustomCategory(false);
     setDescription('');
+    setSelectedCustomerId('');
     setCustomerName('');
     setIsOpen(false);
   };
@@ -753,27 +762,65 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
 
               {activeType === 'sale' && (
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] px-2">Método de Pagamento</label>
-                  <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl">
-                    {(['Consolidada', 'Express', 'TPA'] as PaymentMethod[]).map((method) => (
-                      <button
-                        key={method}
-                        type="button"
-                        onClick={() => setPaymentMethod(method)}
-                        className={`flex-1 py-3 px-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
-                          paymentMethod === method 
-                            ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' 
-                            : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
-                        }`}
-                      >
-                        {method}
-                      </button>
-                    ))}
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] px-2">Cliente</label>
+                  <div className="relative">
+                    <select 
+                      value={selectedCustomerId} 
+                      onChange={e => {
+                        setSelectedCustomerId(e.target.value);
+                        if (e.target.value === '') setPaymentMethod('Consolidada');
+                      }} 
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-6 py-5 pl-14 text-slate-900 dark:text-slate-100 font-bold focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:outline-none appearance-none"
+                    >
+                      <option value="">Consumidor Final (Sem cadastro)</option>
+                      {customers.map(c => (
+                        <option key={c.id} value={c.id}>{c.name} ({c.phone})</option>
+                      ))}
+                    </select>
+                    <User className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                   </div>
                 </div>
               )}
 
               {activeType === 'sale' && (
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] px-2">Método de Pagamento</label>
+                  <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl overflow-x-auto no-scrollbar">
+                    {(['Consolidada', 'Express', 'TPA', 'Saldo Cliente'] as PaymentMethod[]).map((method) => {
+                      const isBalancePayment = method === 'Saldo Cliente';
+                      const isDisabled = isBalancePayment && !selectedCustomerId;
+                      
+                      return (
+                        <button
+                          key={method}
+                          type="button"
+                          disabled={isDisabled}
+                          onClick={() => setPaymentMethod(method)}
+                          className={`flex-1 py-3 px-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                            paymentMethod === method 
+                              ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' 
+                              : isDisabled 
+                                ? 'text-slate-300 dark:text-slate-700 cursor-not-allowed'
+                                : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
+                          }`}
+                        >
+                          {method}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {paymentMethod === 'Saldo Cliente' && selectedCustomerId && (
+                    <div className="flex items-center gap-2 px-4 py-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl border border-emerald-100 dark:border-emerald-800/50">
+                      <Wallet size={14} className="text-emerald-600" />
+                      <span className="text-[10px] font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-widest">
+                        Saldo Disponível: {customers.find(c => c.id === selectedCustomerId)?.balance.toLocaleString()} Kz
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeType === 'sale' && !selectedCustomerId && (
                 <div className="space-y-3">
                   <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] px-2">Nome do Cliente (Opcional)</label>
                   <input 

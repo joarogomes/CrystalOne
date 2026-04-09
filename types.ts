@@ -1,6 +1,15 @@
 
-export type TransactionType = 'sale' | 'expense' | 'investment';
-export type PaymentMethod = 'Express' | 'Consolidada' | 'TPA';
+export type TransactionType = 'sale' | 'expense' | 'investment' | 'prepayment';
+export type PaymentMethod = 'Express' | 'Consolidada' | 'TPA' | 'Saldo Cliente';
+
+export interface Customer {
+  id: string;
+  store_id: string;
+  name: string;
+  phone: string;
+  balance: number;
+  created_at: string;
+}
 
 export interface Transaction {
   id: string;
@@ -11,6 +20,7 @@ export interface Transaction {
   description: string;
   quantity: number;
   payment_method?: PaymentMethod;
+  customer_id?: string;
   customer_name?: string;
   created_at: string;
 }
@@ -89,6 +99,6 @@ export interface Store {
   created_at: string;
 }
 
-export type ViewType = 'dashboard' | 'sales' | 'expenses' | 'inventory' | 'reports' | 'quality';
+export type ViewType = 'dashboard' | 'sales' | 'expenses' | 'inventory' | 'reports' | 'quality' | 'customers';
 
 export type AccessLevel = 'full' | 'operational';

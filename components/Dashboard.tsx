@@ -89,13 +89,17 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, onAddPH, onAd
   const todayStr = getLocalDateString();
   const todayTransactions = state.transactions.filter(t => getLocalDateString(new Date(t.created_at)) === todayStr);
   const todaySalesTotal = todayTransactions.filter(t => t.type === 'sale').reduce((sum, t) => sum + t.amount, 0);
+  const todayDepositsTotal = todayTransactions.filter(t => t.type === 'prepayment').reduce((sum, t) => sum + t.amount, 0);
   const todaySalesCount = todayTransactions.filter(t => t.type === 'sale').length;
 
   const totalSalesAmount = state.transactions.filter(t => t.type === 'sale').reduce((sum, t) => sum + t.amount, 0);
+  const totalPrepaymentsAmount = state.transactions.filter(t => t.type === 'prepayment').reduce((sum, t) => sum + t.amount, 0);
   const totalExpensesAmount = state.transactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
   const totalInvestmentsAmount = state.transactions.filter(t => t.type === 'investment').reduce((sum, t) => sum + t.amount, 0);
   
-  const currentBalance = totalSalesAmount - totalExpensesAmount - totalInvestmentsAmount;
+  // Calculate cash balance: include all inflows except sales paid with 'Saldo Cliente' (already counted in prepayments)
+  const cashSales = state.transactions.filter(t => t.type === 'sale' && t.payment_method !== 'Saldo Cliente').reduce((sum, t) => sum + t.amount, 0);
+  const currentBalance = cashSales + totalPrepaymentsAmount - totalExpensesAmount - totalInvestmentsAmount;
 
   const uniqueCustomers = useMemo(() => {
     const customers = new Set<string>();
@@ -147,7 +151,7 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, onAddPH, onAd
     };
 
     if (timeFilter === 'weekly') {
-      const statsMap: Record<string, { sales: number, expenses: number, investments: number }> = {};
+      const statsMap: Record<string, { sales: number, expenses: number, investments: number, deposits: number, salesFromBalance: number }> = {};
       const last7Days: string[] = [];
       
       for (let i = 6; i >= 0; i--) {
@@ -155,13 +159,17 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, onAddPH, onAd
         d.setDate(now.getDate() - i);
         const dateStr = getLocalDateString(d);
         last7Days.push(dateStr);
-        statsMap[dateStr] = { sales: 0, expenses: 0, investments: 0 };
+        statsMap[dateStr] = { sales: 0, expenses: 0, investments: 0, deposits: 0, salesFromBalance: 0 };
       }
 
       filteredTransactions.forEach(t => {
         const dateStr = getLocalDateString(new Date(t.created_at));
         if (statsMap[dateStr]) {
-          if (t.type === 'sale') statsMap[dateStr].sales += t.amount;
+          if (t.type === 'sale') {
+            statsMap[dateStr].sales += t.amount;
+            if (t.payment_method === 'Saldo Cliente') statsMap[dateStr].salesFromBalance += t.amount;
+          }
+          else if (t.type === 'prepayment') statsMap[dateStr].deposits += t.amount;
           else if (t.type === 'expense') statsMap[dateStr].expenses += t.amount;
           else if (t.type === 'investment') statsMap[dateStr].investments += t.amount;
         }
@@ -175,18 +183,18 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, onAddPH, onAd
           sales: stats.sales,
           expenses: stats.expenses,
           investments: stats.investments,
-          profit: stats.sales - stats.expenses - stats.investments,
+          profit: (stats.sales - stats.salesFromBalance) + stats.deposits - stats.expenses - stats.investments,
           color: getSalesColor(stats.sales)
         });
       });
     } else if (timeFilter === 'monthly') {
       // Group by week of the month
-      const statsMap: Record<number, { sales: number, expenses: number, investments: number }> = {
-        1: { sales: 0, expenses: 0, investments: 0 },
-        2: { sales: 0, expenses: 0, investments: 0 },
-        3: { sales: 0, expenses: 0, investments: 0 },
-        4: { sales: 0, expenses: 0, investments: 0 },
-        5: { sales: 0, expenses: 0, investments: 0 },
+      const statsMap: Record<number, { sales: number, expenses: number, investments: number, deposits: number, salesFromBalance: number }> = {
+        1: { sales: 0, expenses: 0, investments: 0, deposits: 0, salesFromBalance: 0 },
+        2: { sales: 0, expenses: 0, investments: 0, deposits: 0, salesFromBalance: 0 },
+        3: { sales: 0, expenses: 0, investments: 0, deposits: 0, salesFromBalance: 0 },
+        4: { sales: 0, expenses: 0, investments: 0, deposits: 0, salesFromBalance: 0 },
+        5: { sales: 0, expenses: 0, investments: 0, deposits: 0, salesFromBalance: 0 },
       };
       
       filteredTransactions.forEach(t => {
@@ -194,7 +202,11 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, onAddPH, onAd
         if (td.getMonth() === now.getMonth() && td.getFullYear() === now.getFullYear()) {
           const day = td.getDate();
           const week = Math.min(5, Math.ceil(day / 7));
-          if (t.type === 'sale') statsMap[week].sales += t.amount;
+          if (t.type === 'sale') {
+            statsMap[week].sales += t.amount;
+            if (t.payment_method === 'Saldo Cliente') statsMap[week].salesFromBalance += t.amount;
+          }
+          else if (t.type === 'prepayment') statsMap[week].deposits += t.amount;
           else if (t.type === 'expense') statsMap[week].expenses += t.amount;
           else if (t.type === 'investment') statsMap[week].investments += t.amount;
         }
@@ -214,33 +226,37 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, onAddPH, onAd
           sales: stats.sales,
           expenses: stats.expenses,
           investments: stats.investments,
-          profit: stats.sales - stats.expenses - stats.investments,
+          profit: (stats.sales - stats.salesFromBalance) + stats.deposits - stats.expenses - stats.investments,
           color: getSalesColor(stats.sales)
         });
       }
     } else {
-      const statsMap: Record<number, { sales: number, expenses: number, investments: number }> = {};
+      const statsMap: Record<number, { sales: number, expenses: number, investments: number, deposits: number, salesFromBalance: number }> = {};
       const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
       
       filteredTransactions.forEach(t => {
         const td = new Date(t.created_at);
         if (td.getFullYear() === now.getFullYear()) {
           const month = td.getMonth();
-          if (!statsMap[month]) statsMap[month] = { sales: 0, expenses: 0, investments: 0 };
-          if (t.type === 'sale') statsMap[month].sales += t.amount;
+          if (!statsMap[month]) statsMap[month] = { sales: 0, expenses: 0, investments: 0, deposits: 0, salesFromBalance: 0 };
+          if (t.type === 'sale') {
+            statsMap[month].sales += t.amount;
+            if (t.payment_method === 'Saldo Cliente') statsMap[month].salesFromBalance += t.amount;
+          }
+          else if (t.type === 'prepayment') statsMap[month].deposits += t.amount;
           else if (t.type === 'expense') statsMap[month].expenses += t.amount;
           else if (t.type === 'investment') statsMap[month].investments += t.amount;
         }
       });
 
       for (let i = 0; i < 12; i++) {
-        const stats = statsMap[i] || { sales: 0, expenses: 0, investments: 0 };
+        const stats = statsMap[i] || { sales: 0, expenses: 0, investments: 0, deposits: 0, salesFromBalance: 0 };
         data.push({
           label: months[i],
           sales: stats.sales,
           expenses: stats.expenses,
           investments: stats.investments,
-          profit: stats.sales - stats.expenses - stats.investments,
+          profit: (stats.sales - stats.salesFromBalance) + stats.deposits - stats.expenses - stats.investments,
           color: getSalesColor(stats.sales)
         });
       }
@@ -256,6 +272,18 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, onAddPH, onAd
       profit: acc.profit + curr.profit
     }), { sales: 0, expenses: 0, investments: 0, profit: 0 });
   }, [trendsData]);
+
+  const maintenanceAlert = useMemo(() => {
+    if (state.maintenanceRecords.length === 0) return { due: true, days: null };
+    const latest = state.maintenanceRecords[0];
+    const lastDate = new Date(latest.date);
+    const now = new Date();
+    const lastDateMidnight = new Date(lastDate.getFullYear(), lastDate.getMonth(), lastDate.getDate());
+    const nowMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const diffTime = nowMidnight.getTime() - lastDateMidnight.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return { due: diffDays >= 15, days: diffDays };
+  }, [state.maintenanceRecords]);
 
   const navigatePrevious = () => {
     const d = new Date(currentDate);
@@ -285,6 +313,37 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, onAddPH, onAd
   return (
     <div className="space-y-8 animate-premium">
       
+      {/* Maintenance Alert Card */}
+      {maintenanceAlert.due && (
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-r from-amber-500 to-orange-600 p-6 rounded-[32px] shadow-xl shadow-amber-200 dark:shadow-amber-900/20 text-white relative overflow-hidden group"
+        >
+          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-6">
+              <div className="p-4 bg-white/20 backdrop-blur-md rounded-2xl border border-white/30 group-hover:scale-110 transition-transform">
+                <AlertCircle size={32} />
+              </div>
+              <div className="flex flex-col">
+                <h4 className="text-xl font-black tracking-tight">Alerta de Manutenção</h4>
+                <p className="text-white/80 text-sm font-bold">
+                  {maintenanceAlert.days === null 
+                    ? "Nenhuma manutenção registrada. Recomenda-se realizar a manutenção inicial." 
+                    : `A última manutenção foi realizada há ${maintenanceAlert.days} dias. É necessário realizar a manutenção quinzenal.`}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="px-4 py-2 bg-white/20 backdrop-blur-md rounded-xl border border-white/30 text-[10px] font-black uppercase tracking-widest">
+                Ciclo: 15 Dias
+              </div>
+            </div>
+          </div>
+          <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-1000"></div>
+        </motion.div>
+      )}
+
       {/* KPI Cards Grid Adaptive */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
         {/* Balance Card */}
@@ -303,13 +362,25 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, onAddPH, onAd
                 </div>
               </div>
               
-              <div className="flex items-center gap-4 bg-emerald-50/70 dark:bg-emerald-950/30 p-4 md:p-6 rounded-2xl md:rounded-3xl border border-emerald-100 dark:border-emerald-900/30">
-                 <TrendingUp size={20} className="text-emerald-500" />
-                 <div className="flex flex-col">
-                   <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Vendas Hoje</span>
-                   <span className="text-lg md:text-xl font-black text-slate-800 dark:text-slate-200">+{todaySalesTotal.toLocaleString()} Kz</span>
-                 </div>
-                 <span className="ml-auto bg-emerald-500 text-white text-[10px] px-3 py-1 rounded-full font-black">{todaySalesCount} un</span>
+              <div className="space-y-4">
+                <div className="flex items-center gap-4 bg-emerald-50/70 dark:bg-emerald-950/30 p-4 md:p-6 rounded-2xl md:rounded-3xl border border-emerald-100 dark:border-emerald-900/30">
+                   <TrendingUp size={20} className="text-emerald-500" />
+                   <div className="flex flex-col">
+                     <span className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Vendas Hoje</span>
+                     <span className="text-lg md:text-xl font-black text-slate-800 dark:text-slate-200">+{todaySalesTotal.toLocaleString()} Kz</span>
+                   </div>
+                   <span className="ml-auto bg-emerald-500 text-white text-[10px] px-3 py-1 rounded-full font-black">{todaySalesCount} un</span>
+                </div>
+
+                {todayDepositsTotal > 0 && (
+                  <div className="flex items-center gap-4 bg-blue-50/70 dark:bg-blue-950/30 p-4 md:p-6 rounded-2xl md:rounded-3xl border border-blue-100 dark:border-blue-900/30">
+                     <Wallet size={20} className="text-blue-500" />
+                     <div className="flex flex-col">
+                       <span className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest">Depósitos Hoje</span>
+                       <span className="text-lg md:text-xl font-black text-slate-800 dark:text-slate-200">+{todayDepositsTotal.toLocaleString()} Kz</span>
+                     </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

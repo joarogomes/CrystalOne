@@ -1,14 +1,15 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import TransactionForm from './components/TransactionForm';
 import InventoryView from './components/InventoryView';
 import ReportsView from './components/ReportsView';
+import CustomerView from './components/CustomerView';
 import NotificationToast from './components/NotificationToast';
 import LoginPin from './components/LoginPin';
 import DatabaseSetupView from './components/DatabaseSetupView';
-import { BusinessState, ViewType, Transaction, InventoryItem, InventoryMovement, Store, AppNotification, PHRecord, TDSRecord, AccessLevel, MaintenanceRecord } from './types';
+import { BusinessState, ViewType, Transaction, InventoryItem, InventoryMovement, Store, AppNotification, PHRecord, TDSRecord, AccessLevel, MaintenanceRecord, Customer, PaymentMethod } from './types';
 import { INITIAL_INVENTORY } from './constants';
 import { supabase } from './services/supabase';
 
@@ -23,6 +24,8 @@ const App: React.FC = () => {
 
   const [stores, setStores] = useState<Store[]>([]);
   const [activeStoreId, setActiveStoreId] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
@@ -134,35 +137,83 @@ const App: React.FC = () => {
     }
   };
 
-  useEffect(() => {
+  const loadData = useCallback(async () => {
     if (!activeStoreId || !isAuthenticated) return;
+    try {
+      const [tRes, iRes, phRes, tdsRes, mRes, maintRes, cRes] = await Promise.all([
+        supabase.from('transactions').select('*').eq('store_id', activeStoreId).order('created_at', { ascending: false }),
+        supabase.from('inventory_items').select('*').eq('store_id', activeStoreId).order('name'),
+        supabase.from('ph_records').select('*').eq('store_id', activeStoreId).order('created_at', { ascending: false }),
+        supabase.from('tds_records').select('*').eq('store_id', activeStoreId).order('created_at', { ascending: false }),
+        supabase.from('inventory_movements').select('*').order('created_at', { ascending: false }),
+        supabase.from('maintenance_records').select('*').eq('store_id', activeStoreId).order('date', { ascending: false }),
+        supabase.from('customers').select('*').eq('store_id', activeStoreId).order('name')
+      ]);
 
-    const loadData = async () => {
-      try {
-        const [tRes, iRes, phRes, tdsRes, mRes, maintRes] = await Promise.all([
-          supabase.from('transactions').select('*').eq('store_id', activeStoreId).order('created_at', { ascending: false }),
-          supabase.from('inventory_items').select('*').eq('store_id', activeStoreId).order('name'),
-          supabase.from('ph_records').select('*').eq('store_id', activeStoreId).order('created_at', { ascending: false }),
-          supabase.from('tds_records').select('*').eq('store_id', activeStoreId).order('created_at', { ascending: false }),
-          supabase.from('inventory_movements').select('*').order('created_at', { ascending: false }),
-          supabase.from('maintenance_records').select('*').eq('store_id', activeStoreId).order('date', { ascending: false })
-        ]);
+      setTransactions(tRes.data || []);
+      setInventory(iRes.data || []);
+      setPhRecords(phRes.data || []);
+      setTdsRecords(tdsRes.data || []);
+      setInventoryMovements(mRes.data || []);
+      setMaintenanceRecords(maintRes.data || []);
+      setCustomers(cRes.data || []);
+    } catch (err) {
+      console.error("Erro ao carregar dados da unidade:", err);
+    }
+  }, [activeStoreId, isAuthenticated]);
 
-        setTransactions(tRes.data || []);
-        setInventory(iRes.data || []);
-        setPhRecords(phRes.data || []);
-        setTdsRecords(tdsRes.data || []);
-        setInventoryMovements(mRes.data || []);
-        setMaintenanceRecords(maintRes.data || []);
-      } catch (err) {
-        console.error("Erro ao carregar dados da unidade:", err);
-      }
-    };
-
+  useEffect(() => {
     loadData();
     const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
     console.log("Status da IA:", apiKey ? "Configurada" : "Não configurada");
-  }, [activeStoreId, isAuthenticated]);
+  }, [loadData]);
+
+  useEffect(() => {
+    if (!activeStoreId || !isAuthenticated || maintenanceRecords.length === 0) {
+      // Se não houver registros e estiver autenticado, podemos sugerir a primeira manutenção
+      if (isAuthenticated && activeStoreId && maintenanceRecords.length === 0) {
+        // Opcional: alertar que nenhuma manutenção foi registrada ainda
+      }
+      return;
+    }
+
+    const checkMaintenance = () => {
+      const latest = maintenanceRecords[0]; // Ordenado por data desc no fetch
+      const lastDate = new Date(latest.date);
+      const now = new Date();
+      
+      // Zerar horas para comparação apenas de dias
+      const lastDateMidnight = new Date(lastDate.getFullYear(), lastDate.getMonth(), lastDate.getDate());
+      const nowMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      const diffTime = nowMidnight.getTime() - lastDateMidnight.getTime();
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays >= 15) {
+        const maintenanceAlert: AppNotification = {
+          id: 'maintenance-alert',
+          store_id: activeStoreId || '',
+          title: 'Alerta de Manutenção',
+          message: `A última manutenção foi realizada há ${diffDays} dias. Lembre-se que a manutenção deve ser feita a cada 15 dias.`,
+          type: 'warning',
+          read: false,
+          created_at: new Date().toISOString()
+        };
+        
+        setNotifications(prev => {
+          if (prev.some(n => n.id === 'maintenance-alert')) return prev;
+          return [maintenanceAlert, ...prev];
+        });
+
+        setToast(maintenanceAlert);
+      } else {
+        // Se a manutenção foi feita recentemente, removemos o alerta se existir
+        setNotifications(prev => prev.filter(n => n.id !== 'maintenance-alert'));
+      }
+    };
+
+    checkMaintenance();
+  }, [maintenanceRecords, activeStoreId, isAuthenticated]);
 
   const testSupabaseWrite = async () => {
     if (!activeStoreId) return;
@@ -216,6 +267,39 @@ const App: React.FC = () => {
   const handleAddTransaction = async (newT: Omit<Transaction, 'id' | 'created_at' | 'store_id'> & { created_at?: string }) => {
     console.log("Iniciando handleAddTransaction com:", newT);
     try {
+      // Se for pagamento via saldo do cliente, verificar e descontar
+      if (newT.payment_method === 'Saldo Cliente' && newT.customer_id) {
+        const customer = customers.find(c => c.id === newT.customer_id);
+        if (!customer) throw new Error('Cliente não encontrado.');
+
+        const newBalance = customer.balance - newT.amount;
+
+        const { error: balanceError } = await supabase
+          .from('customers')
+          .update({ balance: newBalance })
+          .eq('id', newT.customer_id);
+
+        if (balanceError) throw balanceError;
+        
+        // Atualizar estado local dos clientes
+        setCustomers(prev => prev.map(c => c.id === newT.customer_id ? { ...c, balance: newBalance } : c));
+
+        // Se o saldo ficou negativo, enviar notificação
+        if (newBalance < 0) {
+          const debtNotification: AppNotification = {
+            id: crypto.randomUUID(),
+            store_id: activeStoreId || '',
+            title: 'Saldo Negativo',
+            message: `O cliente ${customer.name} agora possui um saldo devedor de ${newBalance.toLocaleString()} Kz.`,
+            type: 'danger',
+            read: false,
+            created_at: new Date().toISOString()
+          };
+          setNotifications(prev => [debtNotification, ...prev]);
+          setToast(debtNotification);
+        }
+      }
+
       const payload = { ...newT, store_id: activeStoreId };
       console.log("Enviando payload para Supabase:", payload);
       const { data, error } = await supabase
@@ -236,7 +320,7 @@ const App: React.FC = () => {
           id: crypto.randomUUID(),
           store_id: activeStoreId || '',
           title: 'Registro Sucesso',
-          message: `${newT.type === 'sale' ? 'Venda' : newT.type === 'expense' ? 'Despesa' : 'Investimento'} de ${newT.amount.toLocaleString()} Kz registrada.`,
+          message: `${newT.type === 'sale' ? 'Venda' : newT.type === 'expense' ? 'Despesa' : newT.type === 'prepayment' ? 'Adiantamento' : 'Investimento'} de ${newT.amount.toLocaleString()} Kz registrada.`,
           type: 'info',
           read: false,
           created_at: new Date().toISOString()
@@ -265,7 +349,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleUpdateInventory = async (id: string, delta: number) => {
+  const handleUpdateInventory = async (id: string, delta: number, paymentMethod: PaymentMethod = 'Consolidada', customerId?: string) => {
     const item = inventory.find(i => i.id === id);
     if (!item) return;
 
@@ -283,7 +367,8 @@ const App: React.FC = () => {
           amount: totalSaleAmount,
           description: `Venda via CrystalOne: ${item.name} (${quantitySold} ${item.unit})`,
           quantity: quantitySold,
-          payment_method: 'Consolidada'
+          payment_method: paymentMethod,
+          customer_id: customerId
         });
 
         const saleNotification: AppNotification = {
@@ -446,6 +531,44 @@ const App: React.FC = () => {
     }
   };
 
+  const handleAddCustomer = async (customer: Omit<Customer, 'id' | 'created_at' | 'store_id'>) => {
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .insert([{ ...customer, store_id: activeStoreId }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setCustomers(prev => [...prev, data]);
+        setToast({
+          id: crypto.randomUUID(),
+          store_id: activeStoreId || '',
+          title: 'Cliente Cadastrado',
+          message: `${customer.name} foi adicionado com sucesso.`,
+          type: 'info',
+          read: false,
+          created_at: new Date().toISOString()
+        });
+      }
+      return data;
+    } catch (err: any) {
+      console.error("Erro ao cadastrar cliente:", err);
+      setToast({
+        id: crypto.randomUUID(),
+        store_id: activeStoreId || '',
+        title: 'Erro de Cadastro',
+        message: `Falha ao cadastrar cliente: ${err.message || 'Erro de rede'}. Verifique se a tabela 'customers' existe no Supabase.`,
+        type: 'danger',
+        read: false,
+        created_at: new Date().toISOString()
+      });
+      throw err;
+    }
+  };
+
   const handleAddInventoryItem = async (newItem: Omit<InventoryItem, 'id' | 'store_id' | 'created_at'>) => {
     try {
       const { data, error } = await supabase
@@ -537,6 +660,8 @@ const App: React.FC = () => {
       dbStatus={dbStatus}
       isDarkMode={isDarkMode}
       onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+      notifications={notifications}
+      onMarkNotificationRead={(id) => setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))}
       onAddStore={async (name) => {
         try {
           const { data, error } = await supabase.from('stores').insert([{ name }]).select().single();
@@ -590,6 +715,7 @@ const App: React.FC = () => {
             accessLevel={accessLevel} 
             phRecords={phRecords}
             storeName={stores.find(s => s.id === activeStoreId)?.name}
+            customers={customers}
           />
         )}
         {activeView === 'expenses' && (
@@ -600,6 +726,20 @@ const App: React.FC = () => {
             accessLevel={accessLevel} 
             phRecords={phRecords}
             storeName={stores.find(s => s.id === activeStoreId)?.name}
+            customers={customers}
+          />
+        )}
+        {activeView === 'customers' && (
+          <CustomerView 
+            customers={customers}
+            transactions={transactions}
+            inventory={inventory}
+            activeStoreId={activeStoreId || ''}
+            accessLevel={accessLevel}
+            onRefresh={loadData}
+            onAddTransaction={handleAddTransaction}
+            onAddCustomer={handleAddCustomer}
+            onUpdateInventory={handleUpdateInventory}
           />
         )}
         {activeView === 'inventory' && <InventoryView inventory={inventory} movements={inventoryMovements} onUpdate={handleUpdateInventory} onAddItem={handleAddInventoryItem} />}

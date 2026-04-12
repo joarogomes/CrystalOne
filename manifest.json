@@ -1,21 +1,32 @@
 {
-  "name": "Água Cristalina - Gestão de Purificadora",
-  "short_name": "Água Cristalina",
-  "description": "Gestão estratégica para purificadoras de água",
+  "name": "Água Cristalina - Gestão PDV",
+  "short_name": "Cristalina",
+  "description": "Sistema de gestão e PDV para purificadoras de água",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#020617",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
   "theme_color": "#2563eb",
   "icons": [
     {
       "src": "https://picsum.photos/seed/aguacristalina/192/192",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "https://picsum.photos/seed/aguacristalina/512/512",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "finance"],
+  "shortcuts": [
+    {
+      "name": "Nova Venda",
+      "url": "/?action=new-sale",
+      "icons": [{ "src": "https://picsum.photos/seed/sale/96/96", "sizes": "96x96" }]
     }
   ]
 }

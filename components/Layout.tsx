@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ViewType, AppNotification, Store, AccessLevel } from '../types';
 import { NAV_ITEMS } from '../constants';
-import { Bell, X, Droplets, ChevronDown, Plus, Store as StoreIcon, LogOut, Monitor, Smartphone, Moon, Sun } from 'lucide-react';
+import { Bell, X, Droplets, ChevronDown, Plus, Store as StoreIcon, LogOut, Monitor, Smartphone, Moon, Sun, Download, RefreshCw } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -15,8 +15,11 @@ interface LayoutProps {
   onAddStore: (name: string) => void;
   onLogout?: () => void;
   onTestDb?: () => void;
+  onExportOfflineData?: () => void;
+  onClearCache?: () => void;
   isTestingDb?: boolean;
   dbStatus?: 'connected' | 'error' | 'checking';
+  isOnline?: boolean;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
   notifications?: AppNotification[];
@@ -34,8 +37,11 @@ const Layout: React.FC<LayoutProps> = ({
   onAddStore,
   onLogout,
   onTestDb,
+  onExportOfflineData,
+  onClearCache,
   isTestingDb = false,
   dbStatus = 'checking',
+  isOnline = true,
   isDarkMode,
   onToggleDarkMode,
   notifications = [],
@@ -104,14 +110,26 @@ const Layout: React.FC<LayoutProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
+          {!isOnline && (
+            <button 
+              onClick={onExportOfflineData}
+              title="Exportar Backup Offline"
+              className="flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl text-amber-600 dark:text-amber-400 hover:bg-amber-100 transition-all active:scale-95"
+            >
+              <Download size={18} />
+              <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">Backup</span>
+            </button>
+          )}
+
           <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-lg">
             <div className={`w-1.5 h-1.5 rounded-full ${
+              !isOnline ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]' :
               dbStatus === 'connected' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 
               dbStatus === 'error' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]' : 
               'bg-amber-500 animate-pulse'
             }`} />
             <span className="text-[8px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
-              {dbStatus === 'connected' ? 'Cloud Sync' : dbStatus === 'error' ? 'Offline' : 'Syncing'}
+              {!isOnline ? 'Offline Mode' : dbStatus === 'connected' ? 'Cloud Sync' : dbStatus === 'error' ? 'Sync Error' : 'Connecting'}
             </span>
           </div>
 
@@ -120,6 +138,14 @@ const Layout: React.FC<LayoutProps> = ({
             className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-700 active:scale-90 transition-all"
           >
             {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
+
+          <button 
+            onClick={onClearCache}
+            title="Limpar Cache e Recarregar"
+            className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-100 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-700 active:scale-90 transition-all"
+          >
+            <RefreshCw size={20} />
           </button>
 
           <div className="relative">

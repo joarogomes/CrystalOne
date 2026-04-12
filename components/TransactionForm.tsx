@@ -206,7 +206,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
     // Validate against minDate
     if (days < 0) {
       const minDate = new Date();
-      const limit = accessLevel === 'full' ? 14 : 0;
+      const limit = accessLevel === 'full' ? 365 : 90;
       minDate.setDate(minDate.getDate() - limit);
       const minDateStr = getLocalDateString(minDate);
       if (newDateStr < minDateStr) return;
@@ -219,7 +219,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
   
   const isAtMinDate = useMemo(() => {
     const minDate = new Date();
-    const limit = accessLevel === 'full' ? 14 : 0;
+    const limit = accessLevel === 'full' ? 365 : 90;
     minDate.setDate(minDate.getDate() - limit);
     return selectedDate <= getLocalDateString(minDate);
   }, [selectedDate, accessLevel]);
@@ -257,10 +257,10 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
     
     const groups: Record<string, { amount: number, quantity: number, timestamp: number, name: string }> = {};
 
-    // Ensure we have at least the last 10 days if filter is 'day'
+    // Ensure we have at least the last 30 days if filter is 'day'
     if (salesTimeFilter === 'day') {
       const today = new Date();
-      for (let i = 14; i >= 0; i--) {
+      for (let i = 60; i >= 0; i--) {
         const d = new Date();
         d.setDate(today.getDate() - i);
         d.setHours(0, 0, 0, 0);
@@ -365,7 +365,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
                     const val = e.target.value;
                     const today = getLocalDateString();
                     const minDate = new Date();
-                    const limit = accessLevel === 'full' ? 14 : 0;
+                    const limit = accessLevel === 'full' ? 365 : 90;
                     minDate.setDate(minDate.getDate() - limit);
                     const minDateStr = getLocalDateString(minDate);
                     
@@ -708,7 +708,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
                       const today = getLocalDateString();
                       const minDate = new Date();
                       // Para investimentos, permitimos qualquer data anterior. Para outros, mantemos o limite.
-                      const limit = activeType === 'investment' ? 365 * 10 : (accessLevel === 'full' ? 14 : 0);
+                      const limit = activeType === 'investment' ? 365 * 10 : (accessLevel === 'full' ? 365 : 90);
                       minDate.setDate(minDate.getDate() - limit);
                       const minDateStr = getLocalDateString(minDate);
                       
@@ -836,19 +836,6 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ type, onAdd, transact
                       </span>
                     </div>
                   )}
-                </div>
-              )}
-
-              {activeType === 'sale' && !selectedCustomerId && (
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] px-2">Nome do Cliente (Opcional)</label>
-                  <input 
-                    type="text" 
-                    value={customerName} 
-                    onChange={e => setCustomerName(e.target.value)} 
-                    placeholder="Ex: João Silva" 
-                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl px-6 py-5 text-slate-900 dark:text-slate-100 font-bold focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-900/30 focus:outline-none" 
-                  />
                 </div>
               )}
 

@@ -42,6 +42,9 @@ interface ReportsViewProps {
   storeName?: string;
   accessLevel?: AccessLevel;
   initialTab?: ReportTab;
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
 }
 
 type ReportTab = 'transactions' | 'quality' | 'ai';
@@ -128,7 +131,18 @@ const getLocalDateString = (date: Date = new Date()) => {
   return `${year}-${month}-${day}`;
 };
 
-const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddTDS, onAddMaintenance, storeName = "Água Cristalina", accessLevel = 'full', initialTab }) => {
+const ReportsView: React.FC<ReportsViewProps> = ({ 
+  state, 
+  onAddPH, 
+  onAddTDS, 
+  onAddMaintenance, 
+  storeName = "Água Cristalina", 
+  accessLevel = 'full', 
+  initialTab,
+  onLoadMore,
+  hasMore = false,
+  isLoadingMore = false
+}) => {
   const [activeTab, setActiveTab] = useState<ReportTab>(() => {
     if (initialTab) return initialTab;
     if (accessLevel === 'operational') return 'quality';
@@ -827,6 +841,24 @@ const ReportsView: React.FC<ReportsViewProps> = ({ state, onAddPH, onAddTDS, onA
                   </div>
                 );
               })}
+
+              {hasMore && (
+                <div className="flex justify-center pt-8 pb-12">
+                  <button 
+                    onClick={onLoadMore}
+                    disabled={isLoadingMore}
+                    className="flex items-center gap-3 px-10 py-5 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-[32px] text-blue-600 dark:text-blue-400 font-black text-xs uppercase tracking-[0.2em] shadow-xl hover:bg-blue-600 hover:text-white dark:hover:bg-blue-500 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLoadingMore ? (
+                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Clock size={18} />
+                    )}
+                    {isLoadingMore ? 'Carregando...' : 'Carregar Transações Antigas'}
+                  </button>
+                </div>
+              )}
+
               {groupedTransactions.length === 0 && (
                 <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-[32px] border border-dashed border-slate-200 dark:border-slate-800">
                   <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Nenhuma transação encontrada</p>

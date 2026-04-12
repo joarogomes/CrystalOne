@@ -12,15 +12,22 @@ import DatabaseSetupView from './components/DatabaseSetupView';
 import { BusinessState, ViewType, Transaction, InventoryItem, InventoryMovement, Store, AppNotification, PHRecord, TDSRecord, AccessLevel, MaintenanceRecord, Customer, PaymentMethod } from './types';
 import { INITIAL_INVENTORY } from './constants';
 import { supabase } from './services/supabase';
+import { offlineService } from './services/offlineService';
+import { openDB } from 'idb';
 
 const App: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewType>('dashboard');
   const [toast, setToast] = useState<AppNotification | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [accessLevel, setAccessLevel] = useState<AccessLevel>('operational');
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return localStorage.getItem('aguacristalina_auth') === 'true';
+  });
+  const [accessLevel, setAccessLevel] = useState<AccessLevel>(() => {
+    return (localStorage.getItem('aguacristalina_access') as AccessLevel) || 'operational';
+  });
   const [dbError, setDbError] = useState<string | null>(null);
   const [dbStatus, setDbStatus] = useState<'connected' | 'error' | 'checking'>('checking');
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   const [stores, setStores] = useState<Store[]>([]);
   const [activeStoreId, setActiveStoreId] = useState<string | null>(null);
@@ -34,6 +41,8 @@ const App: React.FC = () => {
   const [tdsRecords, setTdsRecords] = useState<TDSRecord[]>([]);
   const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([]);
   const [isTestingDb, setIsTestingDb] = useState(false);
+  const [hasMoreTransactions, setHasMoreTransactions] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return localStorage.getItem('aguacristalina_theme') === 'dark';
   });
@@ -48,8 +57,76 @@ const App: React.FC = () => {
   }, [isDarkMode]);
 
   useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const syncOfflineData = useCallback(async () => {
+    if (!navigator.onLine || !isAuthenticated || !activeStoreId) return;
+    
+    const queue = await offlineService.getQueue();
+    if (queue.length === 0) return;
+
+    setToast({
+      id: 'syncing',
+      store_id: activeStoreId,
+      title: 'Sincronizando',
+      message: `Enviando ${queue.length} transações pendentes...`,
+      type: 'info',
+      read: false,
+      created_at: new Date().toISOString()
+    });
+
+    for (const tx of queue) {
+      try {
+        const { tempId, timestamp, ...payload } = tx as any;
+        const { data, error } = await supabase
+          .from('transactions')
+          .insert([{ ...payload, created_at: timestamp }])
+          .select()
+          .single();
+
+        if (error) throw error;
+        if (data) {
+          setTransactions(prev => [data, ...prev]);
+          await offlineService.removeFromQueue(tempId);
+        }
+      } catch (err) {
+        console.error("Erro ao sincronizar transação:", err);
+      }
+    }
+
+    setToast({
+      id: 'synced',
+      store_id: activeStoreId,
+      title: 'Sincronizado',
+      message: 'Todas as transações offline foram enviadas com sucesso.',
+      type: 'success',
+      read: false,
+      created_at: new Date().toISOString()
+    });
+  }, [isAuthenticated, activeStoreId]);
+
+  useEffect(() => {
+    if (isOnline) {
+      syncOfflineData();
+    }
+  }, [isOnline, syncOfflineData]);
+
+  useEffect(() => {
     const initializeApp = async () => {
       try {
+        // Solicitar persistência de armazenamento
+        offlineService.requestPersistence();
+
         // 1. Verificar se a tabela de lojas existe (saúde do DB)
         const { error: healthCheckError } = await supabase.from('stores').select('id').limit(1);
         
@@ -101,12 +178,30 @@ const App: React.FC = () => {
   const handleLogin = useCallback((level: AccessLevel) => {
     setAccessLevel(level);
     setIsAuthenticated(true);
+    localStorage.setItem('aguacristalina_auth', 'true');
+    localStorage.setItem('aguacristalina_access', level);
   }, []);
 
   const handleLogout = useCallback(() => {
     setIsAuthenticated(false);
     setStores([]);
     setActiveStoreId(null);
+    localStorage.removeItem('aguacristalina_auth');
+    localStorage.removeItem('aguacristalina_access');
+  }, []);
+
+  const handleExportOfflineData = useCallback(async () => {
+    await offlineService.exportQueue();
+  }, []);
+
+  const handleClearCache = useCallback(async () => {
+    if (confirm("Isso irá limpar os dados salvos no celular e recarregar tudo da nuvem. Deseja continuar?")) {
+      await offlineService.clearQueue();
+      // Also clear the data cache store
+      const db = await openDB('aguacristalina_offline_db', 3);
+      await db.clear('data_cache');
+      window.location.reload();
+    }
   }, []);
 
   const fetchStores = useCallback(async () => {
@@ -148,36 +243,91 @@ const App: React.FC = () => {
     }
   }, []);
 
+  const loadCachedData = useCallback(async () => {
+    if (!activeStoreId) return;
+    const cachedTransactions = await offlineService.getCache<Transaction[]>(`transactions_${activeStoreId}`);
+    const cachedInventory = await offlineService.getCache<InventoryItem[]>(`inventory_${activeStoreId}`);
+    const cachedCustomers = await offlineService.getCache<Customer[]>(`customers_${activeStoreId}`);
+
+    if (cachedTransactions) setTransactions(cachedTransactions);
+    if (cachedInventory) setInventory(cachedInventory);
+    if (cachedCustomers) setCustomers(cachedCustomers);
+  }, [activeStoreId]);
+
   const loadData = useCallback(async () => {
     if (!activeStoreId || !isAuthenticated) return;
     try {
+      // Usamos .or para garantir que registros antigos sem store_id também sejam carregados
+      const storeFilter = `store_id.eq.${activeStoreId},store_id.is.null`;
+      
       const [tRes, iRes, phRes, tdsRes, mRes, maintRes, cRes] = await Promise.all([
-        supabase.from('transactions').select('*').eq('store_id', activeStoreId).order('created_at', { ascending: false }),
+        supabase.from('transactions').select('*').or(storeFilter).order('created_at', { ascending: false }).limit(100000),
         supabase.from('inventory_items').select('*').eq('store_id', activeStoreId).order('name'),
-        supabase.from('ph_records').select('*').eq('store_id', activeStoreId).order('created_at', { ascending: false }),
-        supabase.from('tds_records').select('*').eq('store_id', activeStoreId).order('created_at', { ascending: false }),
-        supabase.from('inventory_movements').select('*').order('created_at', { ascending: false }),
-        supabase.from('maintenance_records').select('*').eq('store_id', activeStoreId).order('date', { ascending: false }),
-        supabase.from('customers').select('*').eq('store_id', activeStoreId).order('name')
+        supabase.from('ph_records').select('*').or(storeFilter).order('created_at', { ascending: false }).limit(5000),
+        supabase.from('tds_records').select('*').or(storeFilter).order('created_at', { ascending: false }).limit(5000),
+        supabase.from('inventory_movements').select('*').or(storeFilter).order('created_at', { ascending: false }).limit(100000),
+        supabase.from('maintenance_records').select('*').or(storeFilter).order('date', { ascending: false }),
+        supabase.from('customers').select('*').or(storeFilter).order('name')
       ]);
 
-      setTransactions(tRes.data || []);
+      if (tRes.error) console.error("Erro transações:", tRes.error);
+      if (mRes.error) console.error("Erro movimentos:", mRes.error);
+
+      const txs = tRes.data || [];
+      setTransactions(txs);
       setInventory(iRes.data || []);
       setPhRecords(phRes.data || []);
       setTdsRecords(tdsRes.data || []);
       setInventoryMovements(mRes.data || []);
       setMaintenanceRecords(maintRes.data || []);
       setCustomers(cRes.data || []);
+      
+      setHasMoreTransactions(txs.length === 100000);
+
+      // Cache recent data (increased to 1000 for better offline start)
+      await offlineService.setCache(`transactions_${activeStoreId}`, txs.slice(0, 1000));
+      await offlineService.setCache(`inventory_${activeStoreId}`, iRes.data || []);
+      await offlineService.setCache(`customers_${activeStoreId}`, cRes.data || []);
+      
+      setDbStatus('connected');
     } catch (err) {
       console.error("Erro ao carregar dados da unidade:", err);
+      setDbStatus('error');
     }
   }, [activeStoreId, isAuthenticated]);
 
+  const loadMoreTransactions = useCallback(async () => {
+    if (!activeStoreId || !hasMoreTransactions || isLoadingMore) return;
+    
+    setIsLoadingMore(true);
+    try {
+      const lastTx = transactions[transactions.length - 1];
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('store_id', activeStoreId)
+        .lt('created_at', lastTx.created_at)
+        .order('created_at', { ascending: false })
+        .limit(1000);
+
+      if (error) throw error;
+      if (data) {
+        setTransactions(prev => [...prev, ...data]);
+        setHasMoreTransactions(data.length === 1000);
+      }
+    } catch (err) {
+      console.error("Erro ao carregar mais transações:", err);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [activeStoreId, transactions, hasMoreTransactions, isLoadingMore]);
+
   useEffect(() => {
-    loadData();
-    const apiKey = process.env.GEMINI_API_KEY;
-    console.log("Status da IA:", apiKey ? "Configurada" : "Não configurada");
-  }, [loadData]);
+    if (activeStoreId) {
+      loadCachedData();
+      loadData();
+    }
+  }, [activeStoreId, loadData, loadCachedData]);
 
   useEffect(() => {
     if (!activeStoreId || !isAuthenticated || maintenanceRecords.length === 0) {
@@ -213,10 +363,10 @@ const App: React.FC = () => {
         
         setNotifications(prev => {
           if (prev.some(n => n.id === 'maintenance-alert')) return prev;
+          // Only set toast if we are actually adding the notification for the first time in this cycle
+          setToast(maintenanceAlert);
           return [maintenanceAlert, ...prev];
         });
-
-        setToast(maintenanceAlert);
       } else {
         // Se a manutenção foi feita recentemente, removemos o alerta se existir
         setNotifications(prev => prev.filter(n => n.id !== 'maintenance-alert'));
@@ -332,6 +482,27 @@ const App: React.FC = () => {
       }
 
       const payload = { ...newT, customer_id: finalCustomerId, store_id: activeStoreId };
+      
+      if (!navigator.onLine) {
+        const tempId = await offlineService.addToQueue(payload);
+        const fallback: Transaction = {
+          id: tempId,
+          created_at: new Date().toISOString(),
+          ...payload
+        };
+        setTransactions(prev => [fallback, ...prev]);
+        setToast({
+          id: crypto.randomUUID(),
+          store_id: activeStoreId || '',
+          title: 'Modo Offline',
+          message: 'Venda salva localmente. Será sincronizada quando houver internet.',
+          type: 'warning',
+          read: false,
+          created_at: new Date().toISOString()
+        });
+        return fallback;
+      }
+
       console.log("Enviando payload para Supabase:", payload);
       const { data, error } = await supabase
         .from('transactions')
@@ -729,6 +900,10 @@ const App: React.FC = () => {
     customers
   }), [transactions, inventory, phRecords, tdsRecords, inventoryMovements, maintenanceRecords, customers]);
 
+  const handleQuickSell = useCallback((itemId: string) => {
+    handleUpdateInventory(itemId, -1);
+  }, [handleUpdateInventory]);
+
   if (isInitialLoading) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-slate-950">
@@ -779,20 +954,23 @@ const App: React.FC = () => {
       activeStoreId={activeStoreId || ''}
       onSwitchStore={setActiveStoreId}
       dbStatus={dbStatus}
+      isOnline={isOnline}
       isDarkMode={isDarkMode}
       onToggleDarkMode={handleToggleDarkMode}
       notifications={notifications}
       onMarkNotificationRead={handleMarkNotificationRead}
       onAddStore={handleAddStore}
       onLogout={handleLogout}
-      onTestDb={testSupabaseWrite}
+      onTestDb={syncOfflineData}
+      onExportOfflineData={handleExportOfflineData}
+      onClearCache={handleClearCache}
       isTestingDb={isTestingDb}
     >
       <div className="pb-8">
         {activeView === 'dashboard' && (
           <Dashboard 
             state={state} 
-            onQuickSell={(itemId) => handleUpdateInventory(itemId, -1)}
+            onQuickSell={handleQuickSell}
             onAddPH={handleAddPHRecord}
             onAddTDS={handleAddTDSRecord}
             accessLevel={accessLevel}
@@ -843,6 +1021,9 @@ const App: React.FC = () => {
             onAddMaintenance={handleAddMaintenance}
             storeName={stores.find(s => s.id === activeStoreId)?.name} 
             accessLevel={accessLevel}
+            onLoadMore={loadMoreTransactions}
+            hasMore={hasMoreTransactions}
+            isLoadingMore={isLoadingMore}
           />
         )}
         {activeView === 'quality' && (
@@ -854,6 +1035,9 @@ const App: React.FC = () => {
             storeName={stores.find(s => s.id === activeStoreId)?.name} 
             accessLevel={accessLevel}
             initialTab="quality"
+            onLoadMore={loadMoreTransactions}
+            hasMore={hasMoreTransactions}
+            isLoadingMore={isLoadingMore}
           />
         )}
       </div>

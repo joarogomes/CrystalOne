@@ -152,34 +152,48 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, onAddPH, onAd
 
     if (timeFilter === 'weekly') {
       const statsMap: Record<string, { sales: number, expenses: number, investments: number, deposits: number, salesFromBalance: number }> = {};
-      const last7Days: string[] = [];
+      const last30Days: string[] = [];
       
-      for (let i = 6; i >= 0; i--) {
+      for (let i = 29; i >= 0; i--) {
         const d = new Date(now);
         d.setDate(now.getDate() - i);
         const dateStr = getLocalDateString(d);
-        last7Days.push(dateStr);
+        last30Days.push(dateStr);
         statsMap[dateStr] = { sales: 0, expenses: 0, investments: 0, deposits: 0, salesFromBalance: 0 };
       }
 
       filteredTransactions.forEach(t => {
         const dateStr = getLocalDateString(new Date(t.created_at));
         if (statsMap[dateStr]) {
-          if (t.type === 'sale') {
+          // Infer type if missing (common in bulk imports)
+          let type = t.type;
+          if (!type) {
+            const desc = (t.description || '').toLowerCase();
+            const cat = (t.category || '').toLowerCase();
+            if (desc.includes('venda') || cat.includes('água') || cat.includes('tampa')) {
+              type = 'sale';
+            } else if (desc.includes('compra') || desc.includes('saída') || cat.includes('saída')) {
+              type = 'expense';
+            } else {
+              type = 'sale'; // Default to sale
+            }
+          }
+
+          if (type === 'sale') {
             statsMap[dateStr].sales += t.amount;
             if (t.payment_method === 'Saldo Cliente') statsMap[dateStr].salesFromBalance += t.amount;
           }
-          else if (t.type === 'prepayment') statsMap[dateStr].deposits += t.amount;
-          else if (t.type === 'expense') statsMap[dateStr].expenses += t.amount;
-          else if (t.type === 'investment') statsMap[dateStr].investments += t.amount;
+          else if (type === 'prepayment') statsMap[dateStr].deposits += t.amount;
+          else if (type === 'expense') statsMap[dateStr].expenses += t.amount;
+          else if (type === 'investment') statsMap[dateStr].investments += t.amount;
         }
       });
 
-      last7Days.forEach(dateStr => {
+      last30Days.forEach(dateStr => {
         const d = new Date(dateStr + 'T12:00:00');
         const stats = statsMap[dateStr];
         data.push({
-          label: d.toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric' }),
+          label: d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
           sales: stats.sales,
           expenses: stats.expenses,
           investments: stats.investments,
@@ -188,48 +202,56 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, onAddPH, onAd
         });
       });
     } else if (timeFilter === 'monthly') {
-      // Group by week of the month
-      const statsMap: Record<number, { sales: number, expenses: number, investments: number, deposits: number, salesFromBalance: number }> = {
-        1: { sales: 0, expenses: 0, investments: 0, deposits: 0, salesFromBalance: 0 },
-        2: { sales: 0, expenses: 0, investments: 0, deposits: 0, salesFromBalance: 0 },
-        3: { sales: 0, expenses: 0, investments: 0, deposits: 0, salesFromBalance: 0 },
-        4: { sales: 0, expenses: 0, investments: 0, deposits: 0, salesFromBalance: 0 },
-        5: { sales: 0, expenses: 0, investments: 0, deposits: 0, salesFromBalance: 0 },
-      };
+      // Group by day of the month
+      const statsMap: Record<string, { sales: number, expenses: number, investments: number, deposits: number, salesFromBalance: number }> = {};
+      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const monthDays: string[] = [];
+
+      for (let i = 1; i <= daysInMonth; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth(), i);
+        const dateStr = getLocalDateString(d);
+        monthDays.push(dateStr);
+        statsMap[dateStr] = { sales: 0, expenses: 0, investments: 0, deposits: 0, salesFromBalance: 0 };
+      }
       
       filteredTransactions.forEach(t => {
         const td = new Date(t.created_at);
         if (td.getMonth() === now.getMonth() && td.getFullYear() === now.getFullYear()) {
-          const day = td.getDate();
-          const week = Math.min(5, Math.ceil(day / 7));
-          if (t.type === 'sale') {
-            statsMap[week].sales += t.amount;
-            if (t.payment_method === 'Saldo Cliente') statsMap[week].salesFromBalance += t.amount;
+          const dateStr = getLocalDateString(td);
+          if (statsMap[dateStr]) {
+            // Infer type if missing
+            let type = t.type;
+            if (!type) {
+              const desc = (t.description || '').toLowerCase();
+              const cat = (t.category || '').toLowerCase();
+              if (desc.includes('venda') || cat.includes('água') || cat.includes('tampa')) type = 'sale';
+              else if (desc.includes('compra') || desc.includes('saída') || cat.includes('saída')) type = 'expense';
+              else type = 'sale';
+            }
+
+            if (type === 'sale') {
+              statsMap[dateStr].sales += t.amount;
+              if (t.payment_method === 'Saldo Cliente') statsMap[dateStr].salesFromBalance += t.amount;
+            }
+            else if (type === 'prepayment') statsMap[dateStr].deposits += t.amount;
+            else if (type === 'expense') statsMap[dateStr].expenses += t.amount;
+            else if (type === 'investment') statsMap[dateStr].investments += t.amount;
           }
-          else if (t.type === 'prepayment') statsMap[week].deposits += t.amount;
-          else if (t.type === 'expense') statsMap[week].expenses += t.amount;
-          else if (t.type === 'investment') statsMap[week].investments += t.amount;
         }
       });
 
-      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-
-      for (let i = 1; i <= 5; i++) {
-        const stats = statsMap[i];
-        const startDay = (i - 1) * 7 + 1;
-        const endDay = Math.min(i * 7, daysInMonth);
-        
-        if (startDay > daysInMonth) continue;
-
+      monthDays.forEach(dateStr => {
+        const d = new Date(dateStr + 'T12:00:00');
+        const stats = statsMap[dateStr];
         data.push({
-          label: `Semana ${i} (${startDay}-${endDay})`,
+          label: d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
           sales: stats.sales,
           expenses: stats.expenses,
           investments: stats.investments,
           profit: (stats.sales - stats.salesFromBalance) + stats.deposits - stats.expenses - stats.investments,
           color: getSalesColor(stats.sales)
         });
-      }
+      });
     } else {
       const statsMap: Record<number, { sales: number, expenses: number, investments: number, deposits: number, salesFromBalance: number }> = {};
       const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
@@ -551,19 +573,19 @@ const Dashboard: React.FC<DashboardProps> = ({ state, onQuickSell, onAddPH, onAd
                     onClick={() => setTimeFilter('weekly')} 
                     className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${timeFilter === 'weekly' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                   >
-                    Semana
+                    Dia
                   </button>
                   <button 
                     onClick={() => setTimeFilter('monthly')} 
                     className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${timeFilter === 'monthly' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                   >
-                    Mês
+                    Semana
                   </button>
                   <button 
                     onClick={() => setTimeFilter('yearly')} 
                     className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${timeFilter === 'yearly' ? 'bg-white dark:bg-slate-700 shadow-sm text-blue-600' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
                   >
-                    Ano
+                    Mês
                   </button>
                 </div>
               </div>
